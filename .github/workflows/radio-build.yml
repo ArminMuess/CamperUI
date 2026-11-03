@@ -1,0 +1,60 @@
+name: CamperUI Radio Firmware
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  firmware:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: arduino/setup-arduino-cli@v2
+        with:
+          version: '1.3.1'
+
+      - name: Install tools and libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          exec > >(tee build/setup.log) 2>&1
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.12
+          arduino-cli lib install 'lvgl@8.4.0' 'GFX Library for Arduino@1.5.3' SensorLib ArduinoJson ESP32_IO_Expander ESP32_Display_Panel
+          cp CamperUI/config/lv_conf.h "$HOME/Arduino/libraries/lv_conf.h"
+          arduino-cli version
+          arduino-cli core list
+          arduino-cli lib list
+
+      - name: Compile firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          arduino-cli compile --output-dir "$GITHUB_WORKSPACE/build" --fqbn 'esp32:esp32:esp32s3:CPUFreq=240,CDCOnBoot=cdc,PSRAM=opi,FlashSize=16M,PartitionScheme=app3M_fat9M_16MB' CamperUI 2>&1 | tee build/compile.log
+          test -s build/CamperUI.ino.bin
+          mkdir -p ota
+          cp build/CamperUI.ino.bin ota/CamperUI-Radio-OTA.bin
+          sha256sum ota/CamperUI-Radio-OTA.bin > ota/SHA256SUMS.txt
+
+      - name: Download for WLAN update
+        uses: actions/upload-artifact@v4
+        with:
+          name: CamperUI-Radio-WLAN-Update
+          path: ota/
+          if-no-files-found: error
+
+      - name: Build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CamperUI-Radio-Buildprotokoll
+          path: build/*.log
+          if-no-files-found: warn
