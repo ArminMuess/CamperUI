@@ -1,0 +1,9 @@
+#pragma once
+#include <lvgl.h>
+void ui_build_victron(lv_obj_t*);
+void ui_update_victron();
+void ui_victron_reset();
+lv_obj_t *ui_build_victron_home(lv_obj_t*);
+lv_obj_t *ui_build_victron_home_power(lv_obj_t*);
+void ui_update_victron_home();
+void ui_victron_home_reset();
