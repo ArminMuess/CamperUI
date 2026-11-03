@@ -28,7 +28,7 @@ jobs:
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.12
-          arduino-cli lib install 'lvgl@8.4.0' 'GFX Library for Arduino@1.5.3' SensorLib ArduinoJson ESP32_IO_Expander ESP32_Display_Panel
+          arduino-cli lib install 'lvgl@8.4.0' 'GFX Library for Arduino@1.6.9' SensorLib ArduinoJson ESP32_IO_Expander ESP32_Display_Panel
           cp CamperUI/config/lv_conf.h "$HOME/Arduino/libraries/lv_conf.h"
           arduino-cli version
           arduino-cli core list
