@@ -1,0 +1,384 @@
+[
+  {
+    "id": "tab_camperui_producers",
+    "type": "tab",
+    "label": "CamperUI - Energie Endpoints",
+    "disabled": false,
+    "info": "Bereitstellung der REST-Endpoints GET /shore und GET /booster für CamperUI (Option B).\nErmöglicht getrennte Anzeige von Landstrom (230V) und Ladebooster/Lichtmaschine."
+  },
+  {
+    "id": "group_shore_endpoint",
+    "type": "group",
+    "z": "tab_camperui_producers",
+    "name": "1. GET /shore (Landstrom Endpoint)",
+    "style": {
+      "stroke": "#0284c7",
+      "fill": "#f0f9ff",
+      "label": true,
+      "color": "#0369a1"
+    },
+    "nodes": [
+      "http_in_shore",
+      "fn_build_shore_json",
+      "http_resp_shore"
+    ],
+    "x": 40,
+    "y": 40,
+    "w": 580,
+    "h": 120
+  },
+  {
+    "id": "http_in_shore",
+    "type": "http in",
+    "z": "tab_camperui_producers",
+    "g": "group_shore_endpoint",
+    "name": "GET /shore",
+    "url": "/shore",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 130,
+    "y": 100,
+    "wires": [
+      [
+        "fn_build_shore_json"
+      ]
+    ]
+  },
+  {
+    "id": "fn_build_shore_json",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_shore_endpoint",
+    "name": "Build /shore JSON",
+    "func": "// Daten aus globalem Node-RED Kontext abfragen (mit Fallbacks)\nlet conn = global.get(\"shore_connected\");\nlet p = global.get(\"shore_power\");\nlet v = global.get(\"shore_voltage\");\nlet i = global.get(\"shore_current\");\n\n// Typumwandlung und Plausibilität\nlet isConnected = (conn !== undefined) ? Boolean(conn) : false;\nlet power = (p !== undefined && !isNaN(Number(p))) ? Number(p) : 0;\nlet voltage = (v !== undefined && !isNaN(Number(v))) ? Number(v) : (isConnected ? 230.0 : 0.0);\nlet current = (i !== undefined && !isNaN(Number(i))) ? Number(i) : ((voltage > 10 && power > 0) ? +(power / voltage).toFixed(2) : 0.0);\n\n// Wenn Leistung anliegt, gilt Landstrom automatisch als verbunden\nif (power > 5.0) {\n    isConnected = true;\n    if (voltage < 50.0) voltage = 230.0;\n}\n\nmsg.payload = {\n    connected: isConnected,\n    power: power,\n    voltage: voltage,\n    current: current\n};\n\nmsg.headers = {\n    \"Content-Type\": \"application/json\",\n    \"Access-Control-Allow-Origin\": \"*\"\n};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 330,
+    "y": 100,
+    "wires": [
+      [
+        "http_resp_shore"
+      ]
+    ]
+  },
+  {
+    "id": "http_resp_shore",
+    "type": "http response",
+    "z": "tab_camperui_producers",
+    "g": "group_shore_endpoint",
+    "name": "200 OK",
+    "statusCode": "200",
+    "headers": {},
+    "x": 520,
+    "y": 100,
+    "wires": []
+  },
+  {
+    "id": "group_booster_endpoint",
+    "type": "group",
+    "z": "tab_camperui_producers",
+    "name": "2. GET /booster (Ladebooster / Lichtmaschine Endpoint)",
+    "style": {
+      "stroke": "#9333ea",
+      "fill": "#faf5ff",
+      "label": true,
+      "color": "#7e22ce"
+    },
+    "nodes": [
+      "http_in_booster",
+      "fn_build_booster_json",
+      "http_resp_booster"
+    ],
+    "x": 40,
+    "y": 200,
+    "w": 580,
+    "h": 120
+  },
+  {
+    "id": "http_in_booster",
+    "type": "http in",
+    "z": "tab_camperui_producers",
+    "g": "group_booster_endpoint",
+    "name": "GET /booster",
+    "url": "/booster",
+    "method": "get",
+    "upload": false,
+    "swaggerDoc": "",
+    "x": 140,
+    "y": 260,
+    "wires": [
+      [
+        "fn_build_booster_json"
+      ]
+    ]
+  },
+  {
+    "id": "fn_build_booster_json",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_booster_endpoint",
+    "name": "Build /booster JSON",
+    "func": "// Daten aus globalem Node-RED Kontext abfragen (mit Fallbacks)\nlet act = global.get(\"booster_active\");\nlet p = global.get(\"booster_power\");\nlet v = global.get(\"booster_voltage\"); // z.B. Starterspannung / Lima-Spannung\nlet i = global.get(\"booster_current\");\n\nlet isActive = (act !== undefined) ? Boolean(act) : false;\nlet power = (p !== undefined && !isNaN(Number(p))) ? Number(p) : 0;\nlet voltage = (v !== undefined && !isNaN(Number(v))) ? Number(v) : (isActive ? 14.2 : 0.0);\nlet current = (i !== undefined && !isNaN(Number(i))) ? Number(i) : 0.0;\n\n// Wenn Ladeleistung > 5W anliegt, gilt Booster als aktiv\nif (power > 5.0) {\n    isActive = true;\n}\n\nmsg.payload = {\n    active: isActive,\n    power: power,\n    voltage: voltage,\n    current: current\n};\n\nmsg.headers = {\n    \"Content-Type\": \"application/json\",\n    \"Access-Control-Allow-Origin\": \"*\"\n};\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 340,
+    "y": 260,
+    "wires": [
+      [
+        "http_resp_booster"
+      ]
+    ]
+  },
+  {
+    "id": "http_resp_booster",
+    "type": "http response",
+    "z": "tab_camperui_producers",
+    "g": "group_booster_endpoint",
+    "name": "200 OK",
+    "statusCode": "200",
+    "headers": {},
+    "x": 520,
+    "y": 260,
+    "wires": []
+  },
+  {
+    "id": "group_demo_inject",
+    "type": "group",
+    "z": "tab_camperui_producers",
+    "name": "3. Test-Injektionen (Zum schnellen Testen per Knopfdruck)",
+    "style": {
+      "stroke": "#16a34a",
+      "fill": "#f0fdf4",
+      "label": true,
+      "color": "#15803d"
+    },
+    "nodes": [
+      "inj_shore_on",
+      "inj_shore_off",
+      "fn_set_shore_test",
+      "inj_booster_on",
+      "inj_booster_off",
+      "fn_set_booster_test"
+    ],
+    "x": 40,
+    "y": 360,
+    "w": 580,
+    "h": 220
+  },
+  {
+    "id": "inj_shore_on",
+    "type": "inject",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Landstrom AN (450W)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"connected\":true,\"power\":450,\"voltage\":230,\"current\":1.95}",
+    "payloadType": "json",
+    "x": 170,
+    "y": 410,
+    "wires": [
+      [
+        "fn_set_shore_test"
+      ]
+    ]
+  },
+  {
+    "id": "inj_shore_off",
+    "type": "inject",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Landstrom AUS",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"connected\":false,\"power\":0,\"voltage\":0,\"current\":0}",
+    "payloadType": "json",
+    "x": 150,
+    "y": 450,
+    "wires": [
+      [
+        "fn_set_shore_test"
+      ]
+    ]
+  },
+  {
+    "id": "fn_set_shore_test",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Set global.shore_*",
+    "func": "global.set(\"shore_connected\", msg.payload.connected);\nglobal.set(\"shore_power\", msg.payload.power);\nglobal.set(\"shore_voltage\", msg.payload.voltage);\nglobal.set(\"shore_current\", msg.payload.current);\nnode.status({fill: msg.payload.connected ? \"green\" : \"grey\", shape: \"dot\", text: msg.payload.connected ? (msg.payload.power + \" W\") : \"Aus\"});\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 430,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "inj_booster_on",
+    "type": "inject",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Booster AN (350W)",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"active\":true,\"power\":350,\"voltage\":14.2,\"current\":25.0}",
+    "payloadType": "json",
+    "x": 160,
+    "y": 510,
+    "wires": [
+      [
+        "fn_set_booster_test"
+      ]
+    ]
+  },
+  {
+    "id": "inj_booster_off",
+    "type": "inject",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Booster AUS",
+    "props": [
+      {
+        "p": "payload"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "onceDelay": 0.1,
+    "topic": "",
+    "payload": "{\"active\":false,\"power\":0,\"voltage\":12.6,\"current\":0}",
+    "payloadType": "json",
+    "x": 150,
+    "y": 550,
+    "wires": [
+      [
+        "fn_set_booster_test"
+      ]
+    ]
+  },
+  {
+    "id": "fn_set_booster_test",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_demo_inject",
+    "name": "Set global.booster_*",
+    "func": "global.set(\"booster_active\", msg.payload.active);\nglobal.set(\"booster_power\", msg.payload.power);\nglobal.set(\"booster_voltage\", msg.payload.voltage);\nglobal.set(\"booster_current\", msg.payload.current);\nnode.status({fill: msg.payload.active ? \"green\" : \"grey\", shape: \"dot\", text: msg.payload.active ? (msg.payload.power + \" W\") : \"Aus\"});\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 420,
+    "y": 530,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "group_live_integration",
+    "type": "group",
+    "z": "tab_camperui_producers",
+    "name": "4. Vorlagen zur Live-Integration (z.B. Shelly, MQTT, Shunt, D+)",
+    "style": {
+      "stroke": "#ea580c",
+      "fill": "#fff7ed",
+      "label": true,
+      "color": "#c2410c"
+    },
+    "nodes": [
+      "comment_integration_guide",
+      "fn_example_shelly",
+      "fn_example_booster_dplus"
+    ],
+    "x": 40,
+    "y": 620,
+    "w": 580,
+    "h": 200
+  },
+  {
+    "id": "comment_integration_guide",
+    "type": "comment",
+    "z": "tab_camperui_producers",
+    "g": "group_live_integration",
+    "name": "Anleitung: Wie echte Sensoren angebunden werden",
+    "info": "Um echte Sensoren oder Shunts anzubinden, verbinde einfach die Ausgabe deiner Nodes (z.B. MQTT in, Shelly, Modbus, Victron GX) mit einer Function-Node oder Change-Node, die die globalen Variablen beschreibt:\n\n1. Landstrom:\n   global.set(\"shore_connected\", boolean);\n   global.set(\"shore_power\", float_watt);\n   global.set(\"shore_voltage\", float_volt);\n   global.set(\"shore_current\", float_amp);\n\n2. Ladebooster / Lichtmaschine:\n   global.set(\"booster_active\", boolean);\n   global.set(\"booster_power\", float_watt);\n   global.set(\"booster_voltage\", float_volt);\n   global.set(\"booster_current\", float_amp);",
+    "x": 260,
+    "y": 660,
+    "wires": []
+  },
+  {
+    "id": "fn_example_shelly",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_live_integration",
+    "name": "Beispiel: Shelly Plug / 230V Messung -> Shore",
+    "func": "// Beispiel: Eingehende Nachricht von Shelly MQTT oder HTTP (z.B. shellyplus1pm/status/switch:0)\n// msg.payload = { \"apower\": 520.4, \"voltage\": 231.2, \"current\": 2.25, \"output\": true };\n\nif (typeof msg.payload === \"object\" && msg.payload !== null) {\n    let p = msg.payload.apower ?? msg.payload.power ?? 0;\n    let v = msg.payload.voltage ?? 230.0;\n    let i = msg.payload.current ?? (v > 0 ? p / v : 0);\n    let conn = (msg.payload.output !== undefined) ? msg.payload.output : (p > 5.0 || v > 100.0);\n\n    global.set(\"shore_connected\", conn);\n    global.set(\"shore_power\", p);\n    global.set(\"shore_voltage\", v);\n    global.set(\"shore_current\", i);\n\n    node.status({fill: conn ? \"green\" : \"grey\", shape: \"dot\", text: conn ? (p + \" W\") : \"Aus\"});\n}\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 260,
+    "y": 710,
+    "wires": [
+      []
+    ]
+  },
+  {
+    "id": "fn_example_booster_dplus",
+    "type": "function",
+    "z": "tab_camperui_producers",
+    "g": "group_live_integration",
+    "name": "Beispiel: D+ Signal / Shunt -> Booster",
+    "func": "// Beispiel: D+ GPIO Eingang (0 oder 1) oder Shunt/B2B Booster Leistung\n// msg.payload = { \"active\": true, \"power\": 420.0, \"starter_v\": 14.1, \"current\": 30.0 };\n\nif (typeof msg.payload === \"object\" && msg.payload !== null) {\n    let act = msg.payload.active ?? (msg.payload.power > 5.0);\n    let p = msg.payload.power ?? 0;\n    let v = msg.payload.starter_v ?? msg.payload.voltage ?? 14.2;\n    let i = msg.payload.current ?? (v > 0 ? p / v : 0);\n\n    global.set(\"booster_active\", act);\n    global.set(\"booster_power\", p);\n    global.set(\"booster_voltage\", v);\n    global.set(\"booster_current\", i);\n\n    node.status({fill: act ? \"green\" : \"grey\", shape: \"dot\", text: act ? (p + \" W\") : \"Aus\"});\n}\nreturn msg;",
+    "outputs": 1,
+    "noerr": 0,
+    "initialize": "",
+    "finalize": "",
+    "libs": [],
+    "x": 240,
+    "y": 760,
+    "wires": [
+      []
+    ]
+  }
+]
+
