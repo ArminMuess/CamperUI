@@ -1,0 +1,6 @@
+{
+  "mode": "live_safe",
+  "target_host": "100.80.161.23",
+  "target_port": 1880,
+  "background_sync": true
+}

@@ -1,0 +1,81 @@
+{
+  "batt": {
+    "VoltB": 13.34,
+    "Ampere": -1.85,
+    "battsoc": 86,
+    "starter_voltage": 12.65
+  },
+  "mppt": {
+    "mppt_pv_watts": 138.5,
+    "mppt_pv_amps": 7.6,
+    "mppt_pv_volts": 18.2
+  },
+  "relay": {
+    "Relay1": { "state": true,  "name": "Licht Küche" },
+    "Relay2": { "state": false, "name": "Kühlschrank" },
+    "Relay3": { "state": true,  "name": "Wasserpumpe" },
+    "Relay4": { "state": false, "name": "Abwasserventil" },
+    "Relay5": { "state": false, "name": "USB Lader" },
+    "Relay6": { "state": false, "name": "Wechselrichter 230V" },
+    "Relay7": { "state": false, "name": "Heizung 12V" },
+    "Relay8": { "state": false, "name": "Außenlicht" }
+  },
+  "wrelay": {
+    "WifiRelay1": { "state": false, "name": "Testwifi", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay2": { "state": false, "name": "WifiRelay 2", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay3": { "state": false, "name": "WifiRelay 3", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay4": { "state": false, "name": "WifiRelay 4", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay5": { "state": false, "name": "WifiRelay 5", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay6": { "state": false, "name": "WifiRelay 6", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay7": { "state": false, "name": "WifiRelay 7", "firmware": "tasmota", "autooff": 0, "offtime": null },
+    "WifiRelay8": { "state": false, "name": "WifiRelay 8", "firmware": "tasmota", "autooff": 0, "offtime": null }
+  },
+  "dimmer": {
+    "dimmer1": { "state": 70, "name": "Spot Arbeitsplatte" },
+    "dimmer2": { "state": 35, "name": "Ambiente Decke" },
+    "dimmer3": { "state": 0,  "name": "Bett Leseleuchte" },
+    "dimmer4": { "state": 85, "name": "Sitzgruppe Hauptlicht" },
+    "dimmer5": { "state": 0,  "name": "Dimmer 5" },
+    "dimmer6": { "state": 0,  "name": "Dimmer 6" },
+    "dimmer7": { "state": 0,  "name": "Dimmer 7" },
+    "dimmer8": { "state": 0,  "name": "Dimmer 8" }
+  },
+  "level": {
+    "level1": { "state": 75, "name": "Frischwasser" },
+    "level2": { "state": 22, "name": "Grauwasser" },
+    "level3": { "state": 0,  "name": "Tank 3" },
+    "level4": { "state": 0,  "name": "Tank 4" }
+  },
+  "temp": {
+    "temp1": { "state": "21.8", "name": "Innenraum" },
+    "temp2": { "state": "14.2", "name": "Außentemp" },
+    "temp3": { "state": "48.5", "name": "Luftfeuchte" },
+    "temp4": { "state": "6.2",  "name": "Kühlschrank" },
+    "ruuvitag0": { "state": "20.5", "name": "Ruuvi Bett" }
+  },
+  "heater": {
+    "autoterm1": {
+      "heatertoggle": false,
+      "heatstatus": "Standby",
+      "heaterror": "0",
+      "targettemp_vanpi": 21.0,
+      "mode": "temp",
+      "powerlevel": 3,
+      "fanspeed": 2
+    }
+  },
+  "position_sensor": {
+    "x_angle": 0.3,
+    "y_angle": -0.7
+  },
+  "maxxfan": {
+    "maxxfan": {
+      "fan_direction": "out",
+      "fan_vent": "open",
+      "fan_power": false,
+      "fan_auto": false,
+      "fan_speed": 3,
+      "fan_temp": 22
+    }
+  }
+}
