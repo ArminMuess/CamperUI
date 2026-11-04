@@ -9,7 +9,7 @@
 #include <stdlib.h>
 namespace {
 lv_obj_t *screen=nullptr,*form=nullptr,*keyboard=nullptr,*host=nullptr,*port=nullptr,*enabled=nullptr,*notice=nullptr;
-lv_obj_t *names[3]={},*dab[3]={};
+lv_obj_t *names[3]={},*dab[3]={},*shelly=nullptr,*guard_field=nullptr;
 void hide_keyboard(){lv_keyboard_set_textarea(keyboard,nullptr);lv_obj_add_flag(keyboard,LV_OBJ_FLAG_HIDDEN);lv_obj_set_height(form,414);}
 void input_event(lv_event_t *e) {
     auto code=lv_event_get_code(e);
@@ -42,7 +42,11 @@ void save(lv_event_t*) {
     next.port=uint16_t(n);
     for(int i=0;i<3;++i){snprintf(next.playlists[i],sizeof(next.playlists[i]),"%s",lv_textarea_get_text(names[i]));
         snprintf(next.dab_uris[i],sizeof(next.dab_uris[i]),"%s",lv_textarea_get_text(dab[i]));}
-    if(!radio_config_valid(next)){lv_label_set_text(notice,"Host, Playlistnamen oder DAB-URI prüfen");return;}
+    snprintf(next.shelly_host,sizeof(next.shelly_host),"%s",lv_textarea_get_text(shelly));
+    const char *g=lv_textarea_get_text(guard_field);long guard_value=*g?strtol(g,&end,10):0;
+    if((*g && (!end || *end)) || (guard_value && (guard_value<10 || guard_value>90))){lv_label_set_text(notice,"Akku-Schutz: 0 (aus) oder 10 bis 90 %");return;}
+    next.battery_guard=uint8_t(guard_value);
+    if(!radio_config_valid(next)){lv_label_set_text(notice,"Host, Shelly-IP, Playlistnamen oder DAB-URI prüfen");return;}
     if(!radio_config_save(next)){lv_label_set_text(notice,"Speichern fehlgeschlagen");return;}
     close_settings();
 }
@@ -50,20 +54,22 @@ const char PAGE[] PROGMEM=R"HTML(<!doctype html><html lang="de"><meta charset="u
 <style>body{font:16px system-ui;background:#14171d;color:#f8fafc;max-width:620px;margin:24px auto;padding:16px}label{display:block;margin:16px 0}input{font:inherit;box-sizing:border-box;padding:10px;width:100%}input[type=checkbox]{width:auto}button{font:inherit;padding:12px}small{color:#b8c4d6}</style>
 <h1>Radio / Volumio</h1><p>Lokale Verbindung; ohne Adresse bleibt Radio offline.</p><form id="form">
 <label><input type="checkbox" id="enabled"> Radio aktiv</label><label>Volumio-IP oder Hostname (ohne http://)<input id="host" maxlength="63"></label><label>HTTP-Port<input id="port" type="number" min="1" max="65535" required></label>
-<div id="presets"></div><button>Speichern</button></form><p id="status" role="status"></p><p><small>DAB-URIs aus Volumio uebernehmen; keinen Sendersuchlauf vom Panel starten. Spotify wird am Handy oder in Volumio ausgewaehlt.</small></p>
+<div id="presets"></div><h2>Radio-Pi Ein/Aus</h2><label>Shelly-IP (Gen3, ohne http://; leer = ohne Ein/Aus)<input id="shelly" maxlength="63"></label><label>Akku-Schutz: Radio-Pi herunterfahren unter % Ladestand (0 = aus, sonst 10–90)<input id="guard" type="number" min="0" max="90"></label><button>Speichern</button></form><p id="status" role="status"></p><p><small>DAB-URIs aus Volumio uebernehmen; keinen Sendersuchlauf vom Panel starten. Spotify wird am Handy oder in Volumio ausgewaehlt.</small></p>
 <script>const $=id=>document.getElementById(id);const captions=['hr3','RADIO BOB!','ROCK ANTENNE'];
 for(let i=0;i<3;i++){for(const [key,label,max] of [['playlist','Internet-Playlist',63],['dab','DAB-URI (optional)',255]]){const l=document.createElement('label');l.textContent=captions[i]+': '+label;const a=document.createElement('input');a.id=key+i;a.maxLength=max;l.append(a);$('presets').append(l)}}
-async function load(){try{let r=await fetch('/api/radio/settings');if(!r.ok)throw Error('HTTP '+r.status);let c=await r.json();$('enabled').checked=c.enabled;$('host').value=c.host;$('port').value=c.port;for(let i=0;i<3;i++){$('playlist'+i).value=c.playlists[i];$('dab'+i).value=c.dab_uris[i]}}catch(e){$('status').textContent='Laden fehlgeschlagen: '+e.message;$('form').querySelector('button').disabled=true}}
-$('form').onsubmit=async e=>{e.preventDefault();let b=$('form').querySelector('button');b.disabled=true;try{let body={enabled:$('enabled').checked,host:$('host').value.trim(),port:Number($('port').value),playlists:captions.map((_,i)=>$('playlist'+i).value),dab_uris:captions.map((_,i)=>$('dab'+i).value)};let r=await fetch('/api/radio/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let c=await r.json();if(!r.ok)throw Error(c.error||'Speichern fehlgeschlagen');$('status').textContent='Gespeichert. Verbindung wird neu geprueft.'}catch(e){$('status').textContent=e.message}finally{b.disabled=false}};load();</script></html>)HTML";
+async function load(){try{let r=await fetch('/api/radio/settings');if(!r.ok)throw Error('HTTP '+r.status);let c=await r.json();$('enabled').checked=c.enabled;$('host').value=c.host;$('port').value=c.port;for(let i=0;i<3;i++){$('playlist'+i).value=c.playlists[i];$('dab'+i).value=c.dab_uris[i]}$('shelly').value=c.shelly_host||'';$('guard').value=c.battery_guard||0}catch(e){$('status').textContent='Laden fehlgeschlagen: '+e.message;$('form').querySelector('button').disabled=true}}
+$('form').onsubmit=async e=>{e.preventDefault();let b=$('form').querySelector('button');b.disabled=true;try{let body={enabled:$('enabled').checked,host:$('host').value.trim(),port:Number($('port').value),playlists:captions.map((_,i)=>$('playlist'+i).value),dab_uris:captions.map((_,i)=>$('dab'+i).value),shelly_host:$('shelly').value.trim(),battery_guard:Number($('guard').value||0)};let r=await fetch('/api/radio/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let c=await r.json();if(!r.ok)throw Error(c.error||'Speichern fehlgeschlagen');$('status').textContent='Gespeichert. Verbindung wird neu geprueft.'}catch(e){$('status').textContent=e.message}finally{b.disabled=false}};load();</script></html>)HTML";
 void fill(JsonDocument &d,const RadioConfig &c) {
     d["enabled"]=c.enabled;d["host"]=c.host;d["port"]=c.port;
     for(int i=0;i<3;++i){d["playlists"][i]=c.playlists[i];d["dab_uris"][i]=c.dab_uris[i];}
+    d["shelly_host"]=c.shelly_host;d["battery_guard"]=c.battery_guard;
 }
 }
 void ui_radio_settings_reset() {
     if(screen){if(lv_scr_act()==screen)lv_scr_load(scr_main);lv_obj_del(screen);}
     screen=form=keyboard=host=port=enabled=notice=nullptr;
     for(int i=0;i<3;++i)names[i]=dab[i]=nullptr;
+    shelly=guard_field=nullptr;
 }
 void ui_radio_open_settings() {
     if(screen){lv_scr_load(screen);return;}
@@ -79,7 +85,11 @@ void ui_radio_open_settings() {
         names[i]=field(caption,c.playlists[i],252+i*168,63);
         snprintf(caption,sizeof(caption),"%s: DAB-URI (optional)",radio_config::PRESET_LABELS[i]);
         dab[i]=field(caption,c.dab_uris[i],332+i*168,255);}
-    notice=lv_label_create(form);lv_obj_set_pos(notice,0,766);lv_obj_set_width(notice,430);
+    shelly=field("Shelly-IP für Radio-Pi Ein/Aus (leer = ohne)",c.shelly_host,752,63);
+    char gtext[8];snprintf(gtext,sizeof(gtext),"%u",c.battery_guard);
+    guard_field=field("Akku-Schutz: Radio-Pi aus unter % Ladestand (0 = aus)",gtext,832,2);
+    lv_textarea_set_accepted_chars(guard_field,"0123456789");
+    notice=lv_label_create(form);lv_obj_set_pos(notice,0,914);lv_obj_set_width(notice,430);
     lv_label_set_text(notice,"DAB-URIs später bequem im Browser:\nhttp://DISPLAY-IP/radio");
     lv_obj_set_style_text_font(notice,&lv_font_montserrat_12,0);
     for(int i=0;i<2;++i){auto *b=lv_btn_create(screen);lv_obj_set_pos(b,12+i*234,426);lv_obj_set_size(b,222,44);
@@ -100,11 +110,17 @@ void radio_register_routes(WebServer &server) {
     server.on("/api/radio/settings",HTTP_POST,[&server](){
         if(server.arg("plain").length()>4096){server.send(413,"application/json","{\"error\":\"Zu viele Daten\"}");return;}
         JsonDocument d;auto err=deserializeJson(d,server.arg("plain"));
-        RadioConfig c;bool valid=!err && d["enabled"].is<bool>() && d["host"].is<const char*>() && d["port"].is<int>() && d["port"].as<int>()>0 && d["port"].as<int>()<=65535 && d["host"].as<String>().length()<=63 && d["playlists"].is<JsonArray>() && d["playlists"].size()==3 && d["dab_uris"].is<JsonArray>() && d["dab_uris"].size()==3;
+        RadioConfig c=radio_endpoint().config;bool valid=!err && d["enabled"].is<bool>() && d["host"].is<const char*>() && d["port"].is<int>() && d["port"].as<int>()>0 && d["port"].as<int>()<=65535 && d["host"].as<String>().length()<=63 && d["playlists"].is<JsonArray>() && d["playlists"].size()==3 && d["dab_uris"].is<JsonArray>() && d["dab_uris"].size()==3;
         if(valid){c.enabled=d["enabled"].as<bool>();snprintf(c.host,sizeof(c.host),"%s",d["host"].as<const char*>());c.port=d["port"].as<int>();
             for(int i=0;i<3;++i){if(!d["playlists"][i].is<const char*>() || !d["dab_uris"][i].is<const char*>() || d["playlists"][i].as<String>().length()>63 || d["dab_uris"][i].as<String>().length()>255){valid=false;break;}
-                snprintf(c.playlists[i],sizeof(c.playlists[i]),"%s",d["playlists"][i].as<const char*>());snprintf(c.dab_uris[i],sizeof(c.dab_uris[i]),"%s",d["dab_uris"][i].as<const char*>());}}
-        if(!valid || !radio_config_valid(c)){server.send(400,"application/json","{\"error\":\"Adresse, Port oder Presets ungueltig\"}");return;}
+                snprintf(c.playlists[i],sizeof(c.playlists[i]),"%s",d["playlists"][i].as<const char*>());snprintf(c.dab_uris[i],sizeof(c.dab_uris[i]),"%s",d["dab_uris"][i].as<const char*>());}
+            if(valid && !d["shelly_host"].isNull()){
+                if(!d["shelly_host"].is<const char*>() || d["shelly_host"].as<String>().length()>63)valid=false;
+                else snprintf(c.shelly_host,sizeof(c.shelly_host),"%s",d["shelly_host"].as<const char*>());}
+            if(valid && !d["battery_guard"].isNull()){
+                if(!d["battery_guard"].is<int>() || d["battery_guard"].as<int>()<0 || d["battery_guard"].as<int>()>90)valid=false;
+                else c.battery_guard=uint8_t(d["battery_guard"].as<int>());}}
+        if(!valid || !radio_config_valid(c)){server.send(400,"application/json","{\"error\":\"Adresse, Port, Presets, Shelly-IP oder Akku-Schutz ungueltig\"}");return;}
         if(!radio_config_save(c)){server.send(500,"application/json","{\"error\":\"Speichern fehlgeschlagen\"}");return;}
         server.send(200,"application/json","{\"saved\":true}");
     });

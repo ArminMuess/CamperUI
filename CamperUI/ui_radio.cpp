@@ -8,6 +8,8 @@
 namespace {
 lv_obj_t *root, *status, *artist, *title, *playback, *volume_label, *slider;
 lv_obj_t *presets[3], *preset_labels[3], *banks[3], *play_button, *stop_button;
+lv_obj_t *power_button = nullptr, *power_icon = nullptr;
+uint32_t power_hint_at = 0;   // tick of the "hold to switch off" hint (0 = none)
 int bank=0; // Selection changes the controls only; it never starts a source.
 lv_timer_t *refresh = nullptr;
 bool dragging = false;
@@ -55,6 +57,20 @@ lv_obj_t *button(const char *text, int x, int y, int width, intptr_t id) {
     lv_obj_set_style_text_color(l, ui_theme_btn_text(), 0); lv_obj_center(l);
     lv_obj_add_event_cb(b, click, LV_EVENT_CLICKED, reinterpret_cast<void *>(id)); return b;
 }
+// Power: tap switches on; switching off needs a long press so it cannot happen by accident.
+void power_event(lv_event_t *e) {
+    auto code = lv_event_get_code(e);
+    auto s = radio_snapshot();
+    bool running = s.power == RadioPower::On || s.power == RadioPower::Starting;
+    if (code == LV_EVENT_SHORT_CLICKED) {
+        if (s.power == RadioPower::Off || s.power == RadioPower::Unknown) radio_power_request(true);
+        else if (running) power_hint_at = lv_tick_get() | 1;
+    } else if (code == LV_EVENT_LONG_PRESSED && s.power == RadioPower::On) {
+        power_hint_at = 0;   // the shutdown message replaces the hint at once
+        radio_power_request(false);
+    }
+    ui_update_radio();
+}
 void volume_event(lv_event_t *e) {
     auto code = lv_event_get_code(e);
     if (code == LV_EVENT_PRESSED) dragging = true;
@@ -74,6 +90,7 @@ void ui_radio_reset() {
     ui_radio_settings_reset();
     root = status = artist = title = playback = volume_label = slider = nullptr;
     play_button = stop_button = nullptr; for (auto &p : presets) p = nullptr;
+    power_button = power_icon = nullptr; power_hint_at = 0;
     for(auto &p: banks)p=nullptr;for(auto &p:preset_labels)p=nullptr; dragging = false;
     learning = -1;
     radio_set_poll_mode(RadioPollMode::Off);
@@ -82,6 +99,14 @@ void ui_build_radio(lv_obj_t *parent) {
     root = parent; ui_setup_tab_page(root);
     lv_obj_clear_flag(root, LV_OBJ_FLAG_SCROLLABLE);
     label(root, "Radio / Volumio", 0, 0, 384, &lv_font_montserrat_20);
+    power_button=lv_btn_create(root);lv_obj_set_pos(power_button,344,0);lv_obj_set_size(power_button,44,28);
+    lv_obj_set_style_radius(power_button,ui_radius_button(),0);lv_obj_set_style_shadow_width(power_button,0,0);
+    lv_obj_set_style_border_width(power_button,ui_border_width(),0);lv_obj_set_style_border_color(power_button,ui_theme_border(),0);
+    power_icon=lv_label_create(power_button);lv_label_set_text(power_icon,LV_SYMBOL_POWER);lv_obj_center(power_icon);
+    lv_obj_set_style_text_font(power_icon,&lv_font_montserrat_16,0);
+    lv_obj_add_event_cb(power_button,power_event,LV_EVENT_SHORT_CLICKED,nullptr);
+    lv_obj_add_event_cb(power_button,power_event,LV_EVENT_LONG_PRESSED,nullptr);
+    lv_obj_add_flag(power_button,LV_OBJ_FLAG_HIDDEN);
     auto *gear=button("",396,0,44,20);lv_obj_set_height(gear,28);
     auto *icon=lv_label_create(gear);lv_label_set_text(icon,MDI_COG);
     lv_obj_set_style_text_font(icon,&ui_font_mdi_24,0);lv_obj_center(icon);
@@ -116,8 +141,25 @@ void ui_build_radio(lv_obj_t *parent) {
 void ui_update_radio() {
     if (!root) return;
     auto s = radio_snapshot();
-    ui_label_set_text_if_changed(status, s.pending ? "Befehl wird gesendet..." : s.message);
-    ui_label_set_text_if_changed(artist, s.online ? (*s.artist ? s.artist : "Volumio") : "Radio nicht verbunden");
+    // Power button and power messages (only when a Shelly is configured)
+    bool has_power = s.power != RadioPower::None;
+    bool powering = s.power == RadioPower::Starting || s.power == RadioPower::Stopping;
+    if (has_power == lv_obj_has_flag(power_button, LV_OBJ_FLAG_HIDDEN)) {
+        if (has_power) lv_obj_clear_flag(power_button, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(power_button, LV_OBJ_FLAG_HIDDEN);
+    }
+    lv_color_t pc = s.power == RadioPower::On ? ui_theme_relay() : powering ? lv_color_hex(UI_COLOR_WARNING) : ui_theme_card();
+    ui_bg_color_if_changed(power_button, pc);
+    ui_text_color_if_changed(power_icon, s.power == RadioPower::On || powering ? ui_theme_btn_active_text() : ui_theme_btn_text());
+    const char *status_text = s.pending ? "Befehl wird gesendet..." : s.message;
+    if (has_power) {
+        if (power_hint_at && lv_tick_elaps(power_hint_at) < 3000) status_text = "Zum Ausschalten den Ein/Aus-Knopf gedrückt halten";
+        else if (*s.power_message && (powering || uint32_t(millis() - s.power_message_at) < 8000))
+            status_text = s.power_message;
+        else if (s.power == RadioPower::Off) status_text = "Radio-Pi ist aus - Einschalten mit dem Ein/Aus-Knopf";
+    }
+    ui_label_set_text_if_changed(status, status_text);
+    const char *offline = s.power == RadioPower::Off ? "Radio-Pi ausgeschaltet" : powering ? "Bitte warten ..." : "Radio nicht verbunden";
+    ui_label_set_text_if_changed(artist, s.online ? (*s.artist ? s.artist : "Volumio") : offline);
     ui_label_set_text_if_changed(title, s.online ? (*s.title ? s.title : "Keine Titelinformation") : "--");
     bool spotify=radio_protocol::source(s.service,s.uri)==radio_protocol::Source::Spotify;
     bool dab_active=radio_protocol::source(s.service,s.uri)==radio_protocol::Source::Dab;

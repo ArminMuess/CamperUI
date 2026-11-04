@@ -9,6 +9,18 @@ struct RadioConfig {
     uint16_t port = 80;
     char playlists[3][64] = {"Camper hr3", "Camper Radio BOB", "Camper Rockantenne"};
     char dab_uris[3][256] = {};
+    // Radio-Pi power via a Shelly Gen3 WLAN relay in its 12 V supply (empty = no power control)
+    char shelly_host[64] = "";
+    // Battery guard: shut the Radio-Pi down below this state of charge (0 = off, else 10..90 %)
+    uint8_t battery_guard = 0;
+};
+// Layout saved by radio-dev.2 (NVS key config_v2); read once to migrate to config_v3.
+struct RadioConfigV2 {
+    bool enabled = true;
+    char host[64] = "";
+    uint16_t port = 80;
+    char playlists[3][64] = {};
+    char dab_uris[3][256] = {};
 };
 // Plain host only, no scheme/path/credentials. IPv4 and DNS names are supported.
 inline bool radio_valid_host(const char *s) {
@@ -40,6 +52,8 @@ inline bool radio_valid_dab_uri(const char *s) {
 }
 inline bool radio_config_valid(const RadioConfig &c) {
     if (!radio_valid_host(c.host) || !c.port) return false;
+    if (!radio_valid_host(c.shelly_host)) return false;
+    if (c.battery_guard && (c.battery_guard < 10 || c.battery_guard > 90)) return false;
     for(int i=0;i<3;++i) if (!*c.playlists[i] || !radio_valid_dab_uri(c.dab_uris[i])) return false;
     return true;
 }

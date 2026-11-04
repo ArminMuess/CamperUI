@@ -54,5 +54,26 @@ int main() {
     assert(!dab_name("rtlsdr://dab/5C/",n,sizeof(n)) && !dab_name("http://x/5C/a",n,sizeof(n)));
     char small[6]; assert(dab_name("rtlsdr://dab/5C/ABCDEFGH",small,sizeof(small)) && std::string(small)=="ABCDE");
     std::cout<<"PASS: display text cleanup, DAB names\n";
+    // Radio-Pi power helpers
+    {
+        std::string frame=SHUTDOWN_FRAME; auto colon=frame.find(':');
+        assert(std::stoul(frame.substr(0,colon))==frame.size()-colon-1);   // Engine.IO length prefix
+        const char *hs="96:0{\"sid\":\"Xk2_bQ-9aZ\",\"upgrades\":[\"websocket\"],\"pingInterval\":25000,\"pingTimeout\":5000}2:40";
+        assert(engineio_sid(hs)=="Xk2_bQ-9aZ");
+        assert(engineio_sid("").empty() && engineio_sid("{\"sid\":\"\"}").empty() && engineio_sid("{\"sid\":\"a&b\"}").empty());
+        bool on=false;
+        assert(shelly_output("{\"id\":0,\"source\":\"HTTP_in\",\"output\":true,\"temperature\":{}}",on) && on);
+        assert(shelly_output("{\"id\":0,\"output\": false}",on) && !on);
+        assert(!shelly_output("{\"was_on\":true}",on));
+        assert(std::string(shelly_set(true))=="/rpc/Switch.Set?id=0&on=true");
+        bool armed=true;
+        assert(!guard_trigger(50,25,armed) && !guard_trigger(25,25,armed));
+        assert(guard_trigger(24,25,armed) && !armed);          // fires once
+        assert(!guard_trigger(20,25,armed) && !guard_trigger(29,25,armed));  // no repeat, manual restart possible
+        assert(!guard_trigger(30,25,armed) && armed);          // re-armed after +5
+        assert(guard_trigger(10,25,armed));
+        armed=true; assert(!guard_trigger(-1,25,armed) && !guard_trigger(0,25,armed) && !guard_trigger(5,0,armed));
+    }
+    std::cout<<"PASS: Volumio shutdown frame, Shelly status, battery guard\n";
     std::cout<<"PASS: REST commands, UTF-8 encoding, bounds, timeout wraparound, 8 migrations, saved settings\n";
 }

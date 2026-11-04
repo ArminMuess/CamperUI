@@ -16,6 +16,14 @@ Radio-Firmwarekennung: `V1.9.1-radio-dev.3`. Datum: 04.11.2026.
 - **DAB-Knöpfe** zeigen den Sendernamen aus der eingetragenen DAB-Adresse; derselbe Name geht
   als Titel an Volumio. Leere Presets heißen „DAB 1–3“.
 - **Fehlermeldungen von Volumio** (HTTP 200 mit `error`) werden als Fehler angezeigt.
+- **Radio-Pi Ein/Aus über Shelly 1 Gen3** (optional, Shelly-IP unter Zahnrad oder `/radio`):
+  Ein/Aus-Knopf neben dem Zahnrad. Tippen schaltet ein; **Ausschalten nur durch langes Drücken**.
+  Aus-Folge: Volumio herunterfahren (über dessen Websocket-Schnittstelle), warten bis Volumio
+  nicht mehr antwortet, 15 s Sicherheitspuffer, dann Shelly aus. Antwortet Volumio nach 2 Minuten
+  noch, bleibt der Strom an. Bei ausgeschaltetem Pi fragt das Display Volumio gar nicht mehr ab.
+- **Akku-Schutz** (optional, 10–90 %): fällt der VanPi-Ladestand unter die Schwelle, fährt das
+  Display den Radio-Pi einmalig herunter. Erneut aktiv erst, wenn der Akku 5 Prozentpunkte darüber war –
+  manuelles Wiedereinschalten bleibt also möglich.
 - **Laufender Sender grün markiert:** DAB über die Adresse; Internet-Presets nach dem ersten Start
   vom Display (die Stream-Adresse wird dabei gelernt, gilt bis zum Neustart des Displays).
 

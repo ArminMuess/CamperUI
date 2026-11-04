@@ -88,6 +88,47 @@ inline bool dab_name(const char *uri, char *out, size_t len) {
     display_text(out);
     return o > 0;
 }
+// ---- Radio-Pi power (Shelly Gen3 relay + Volumio shutdown) -------------------------
+// Volumio has no REST shutdown; its socket.io 2.x interface (Engine.IO v3) accepts the
+// "shutdown" event. Over HTTP long-polling that is: handshake GET, then one POST.
+constexpr const char *ENGINEIO_PATH = "/socket.io/?EIO=3&transport=polling&b64=1";
+constexpr const char *SHUTDOWN_FRAME = "14:42[\"shutdown\"]";   // <length>:<packet>
+inline std::string engineio_sid(const char *body) {
+    const char *p = strstr(body, "\"sid\":\"");
+    if (!p) return {};
+    p += 7;
+    const char *end = strchr(p, '"');
+    if (!end || end == p || end - p > 64) return {};
+    std::string sid(p, end);
+    for (char c : sid)
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_'))
+            return {};
+    return sid;
+}
+// Shelly Gen2/Gen3 local RPC
+constexpr const char *SHELLY_STATUS = "/rpc/Switch.GetStatus?id=0";
+inline const char *shelly_set(bool on) { return on ? "/rpc/Switch.Set?id=0&on=true" : "/rpc/Switch.Set?id=0&on=false"; }
+// Reads "output": true/false from a Switch.GetStatus answer.
+inline bool shelly_output(const char *json, bool &on) {
+    const char *p = strstr(json, "\"output\"");
+    if (!p) return false;
+    p += 8;
+    while (*p == ' ' || *p == ':') ++p;
+    if (!strncmp(p, "true", 4)) { on = true; return true; }
+    if (!strncmp(p, "false", 5)) { on = false; return true; }
+    return false;
+}
+// Battery guard fires once when the charge drops below the threshold and re-arms
+// only after it has recovered by 5 points, so a manual restart stays possible.
+inline bool guard_trigger(int soc, int threshold, bool &armed) {
+    if (threshold <= 0 || soc <= 0 || soc > 100) return false;
+    if (soc >= threshold + 5) { armed = true; return false; }
+    if (soc < threshold && armed) { armed = false; return true; }
+    return false;
+}
+// Shutdown timing (ms)
+constexpr unsigned POWER_CHECK_MS = 2000, POWER_DOWN_SETTLE_MS = 15000,
+                   POWER_STOP_TIMEOUT_MS = 120000, POWER_START_TIMEOUT_MS = 180000;
 inline std::string path(Action action, int value, const char *playlist = "") {
     if (!valid(action, value)) return {};
     std::string base = "/api/v1/commands/?cmd=";

@@ -76,10 +76,43 @@ Warum „Pause an/aus“ passt: Das Plugin schickt bei Webradio „Stopp“ und 
 - Lautstärkeschritte nach Geschmack (z. B. 2 oder 3 pro Rastung).
 - Die Lautstärke regelt der Mixer der DACBerry; ob der Pegel passt, beim ersten Test mit niedriger Lautstärke prüfen.
 
-## 6. Abnahmetest
+## 6. Radio-Pi Ein/Aus mit Shelly 1 Gen3 (optional)
+
+Das Display schaltet den Radio-Pi über ein Shelly-WLAN-Relais in dessen 12-V-Zuleitung –
+mit sauberem Herunterfahren vorher. Keine Leitung zum VanPi nötig.
+
+**Verkabelung** (alles hinter der Blende):
+
+| Shelly-Klemme | Anschluss |
+|---|---|
+| 12 V **+** | 12 V+ (abgesichert) |
+| 12 V **⊥** (Masse) | Masse |
+| **I** (Relais-Eingang) | 12 V+ (abgesichert) |
+| **O** (Relais-Ausgang) | 12-V-Eingang der DACBerry (versorgt auch den Pi) |
+| **SW** | frei lassen |
+
+**Shelly einrichten** (über seine eigene Weboberfläche, nicht nötig: Shelly-App/Cloud):
+1. Mit dem WLAN des Shelly verbinden, `192.168.33.1` öffnen, euer Camper-WLAN eintragen.
+2. Im Router (RUTX50) dem Shelly eine **feste IP** geben (DHCP-Reservierung).
+3. Ausgang: **Einschaltverhalten nach Stromausfall = letzter Zustand** („Restore last“).
+4. Eingang: **getrennt / detached**, damit am SW-Eingang nichts den Strom schalten kann.
+5. **Keinen Passwortschutz** für die lokale Weboberfläche aktivieren – das Display meldet sich nicht an.
+6. Firmware aktualisieren.
+
+**Am Display:** Zahnrad im Radio-Tab (oder `http://<DISPLAY-IP>/radio`) → **Shelly-IP** eintragen,
+optional **Akku-Schutz** in % (z. B. 25). Danach erscheint der Ein/Aus-Knopf neben dem Zahnrad:
+- **Tippen** = Radio-Pi einschalten (grün = an, orange = startet / fährt herunter).
+- **Lange drücken** = herunterfahren und danach Strom aus.
+
+Das Shelly **nicht** zusätzlich als VanPi-WLAN-Relais anmelden – sonst gäbe es dort einen Schalter,
+der den Strom ohne Herunterfahren trennt.
+
+## 7. Abnahmetest
 
 1. Webradio-Preset am Display antippen → Ton, Titel erscheint.
 2. Drehgeber drehen → Lautstärke ändert sich, Display zeigt den neuen Wert (nach spätestens einer Abfrage).
 3. Kurz drücken → Stopp; nochmal drücken → derselbe Sender läuft wieder.
 4. DAB-Preset antippen → Ton; Drücken stoppt, erneutes Drücken startet ihn wieder.
 5. Pi neu starten → Drücken startet den letzten Sender.
+6. Mit Shelly: Ein/Aus-Knopf lange drücken → Volumio fährt herunter, nach etwa 30–40 s klickt das Relais.
+   Danach tippen → Pi startet, nach der Bootzeit zeigt der Radio-Tab wieder Sender und Titel.

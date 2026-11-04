@@ -1,6 +1,7 @@
 #include "../radio_config.h"
 #include "../volumio_protocol.h"
 #include <cassert>
+#include <cstring>
 #include <iostream>
 int main(){
     assert(radio_valid_host("") && radio_valid_host("192.168.8.123") && radio_valid_host("volumio.local"));
@@ -8,7 +9,12 @@ int main(){
     assert(radio_valid_dab_uri("") && radio_valid_dab_uri("rtlsdr://dab/5C/RADIO%20BOB%21"));
     for(auto uri:{"https://x","rtlsdr://fm/99","rtlsdr://dab/ensemble/foo","rtlsdr://dab/5C/","rtlsdr://dab/5C/Radio Bob","rtlsdr://dab/5C/a#b"})assert(!radio_valid_dab_uri(uri));
     RadioConfig c;assert(radio_config_valid(c));c.port=0;assert(!radio_config_valid(c));c.port=80;
-    c.playlists[1][0]=0;assert(!radio_config_valid(c));
+    c.playlists[1][0]=0;assert(!radio_config_valid(c));c.playlists[1][0]='B';
+    strcpy(c.shelly_host,"192.168.8.40");assert(radio_config_valid(c));strcpy(c.shelly_host,"http://x");assert(!radio_config_valid(c));
+    c.shelly_host[0]=0;
+    for(int g:{0,10,25,90}){c.battery_guard=uint8_t(g);assert(radio_config_valid(c));}
+    for(int g:{1,9,91,100}){c.battery_guard=uint8_t(g);assert(!radio_config_valid(c));}
+    c.battery_guard=0;
     using namespace radio_protocol;
     assert(source("spop","")==Source::Spotify);
     assert(source("spotify","")==Source::Spotify);
