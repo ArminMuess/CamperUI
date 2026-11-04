@@ -1,0 +1,15 @@
+Dokumentation zur Radio-Erweiterung – nur zwei Dateien hochladen
+
+1. ZIP entpacken.
+2. Auf GitHub https://github.com/ArminMuess/CamperUI öffnen.
+3. Auf der OBERSTEN Ebene bleiben: dort, wo .github, CamperUI und docs liegen.
+4. Add file > Upload files wählen.
+5. Den im Paket enthaltenen Ordner docs als Ganzes ins Upload-Feld ziehen.
+6. Es werden nur docs/RADIO_VOLUMIO.md und docs/images/radio-ui-entwurf.png hinzugefügt.
+7. Commit changes bestätigen.
+
+Dieses Paket enthält keine Firmware und verändert keinen Programmcode.
+Die Dateien sind hier vorbereitet, aber noch nicht automatisch auf GitHub veröffentlicht.
+
+Optionaler Link für die Haupt-README:
+[Radio-Erweiterung mit Volumio: Anleitung und UI-Entwürfe](docs/RADIO_VOLUMIO.md)
