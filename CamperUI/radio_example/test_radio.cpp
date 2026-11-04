@@ -4,6 +4,8 @@
 #include <iostream>
 #include <limits>
 #include <set>
+#include <cstdio>
+#include <string>
 using radio_protocol::Action;
 int main() {
     using namespace radio_protocol;
@@ -34,5 +36,23 @@ int main() {
     assert(radio_migrate_tab_order(order,14,false)==14 && order[0]==13);
     assert(radio_migrate_tab_visibility(enabled,14,false)==14 && !enabled[13]);
     assert(radio_migrate_tab_order(order,9,false)==0);
+    // Display text: keep umlauts/€, map punctuation and accents, never grow
+    auto clean=[](const char *in){char b[160];snprintf(b,sizeof(b),"%s",in);display_text(b);return std::string(b);};
+    assert(clean("Söhne Mannheims – Geh’ davon aus…")=="Söhne Mannheims - Geh' davon aus...");
+    assert(clean("„Hörerwunsch“ für 5 €")=="\"Hörerwunsch\" für 5 €");
+    assert(clean("Beyoncé · Café Señor Ça")=="Beyonce - Cafe Senor Ca");
+    assert(clean("ÄÖÜäöüß")=="ÄÖÜäöüß");
+    assert(clean("Emoji 🎵 ok")=="Emoji ? ok" && clean("日本")=="??");
+    assert(clean("cut \xE2\x80")=="cut ?");   // truncated sequence at the end
+    char tail[]="x\xC3"; display_text(tail); assert(std::string(tail)=="x?");
+    // DAB names from plugin URIs
+    char n[64];
+    assert(dab_name("rtlsdr://dab/5C/RADIO%20BOB%21",n,sizeof(n)) && std::string(n)=="RADIO BOB!");
+    assert(dab_name("rtlsdr://dab/11D/WDR%202%20%E2%80%93%20Rheinland",n,sizeof(n)) && std::string(n)=="WDR 2 - Rheinland");
+    assert(dab_name("rtlsdr://dab/12A/Bayern%203%20%C3%96",n,sizeof(n)) && std::string(n)=="Bayern 3 Ö");
+    assert(!dab_name("",n,sizeof(n)) && !*n);
+    assert(!dab_name("rtlsdr://dab/5C/",n,sizeof(n)) && !dab_name("http://x/5C/a",n,sizeof(n)));
+    char small[6]; assert(dab_name("rtlsdr://dab/5C/ABCDEFGH",small,sizeof(small)) && std::string(small)=="ABCDE");
+    std::cout<<"PASS: display text cleanup, DAB names\n";
     std::cout<<"PASS: REST commands, UTF-8 encoding, bounds, timeout wraparound, 8 migrations, saved settings\n";
 }

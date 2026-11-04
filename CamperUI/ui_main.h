@@ -5,7 +5,7 @@
 #include "system_state.h"
 #include "ui_mdi_icons.h"
 #include "ui_fonts.h"
-#define CAMPERUI_VERSION "V1.9.1-radio-dev.2"
+#define CAMPERUI_VERSION "V1.9.1-radio-dev.3"
 
 #if !LV_MEM_CUSTOM && LV_MEM_SIZE < (512U * 1024U)
 #error "CamperUI needs config/lv_conf.h: copy it to Arduino/libraries/lv_conf.h (LV_MEM_SIZE >= 512 KiB)."

@@ -3,7 +3,21 @@
 **Noch nicht flashen: Quellcode, kein vollständig kompilierter ESP32-Build.**
 Basis: CamperUI **V1.9.1**, exakt Commit
 `ef71e15ed8110f5f1a01956fd5a1d3b5677f0550`.
-Radio-Firmwarekennung: `V1.9.1-radio-dev.2`. Datum: 02.11.2026.
+Radio-Firmwarekennung: `V1.9.1-radio-dev.3`. Datum: 04.11.2026.
+
+## Neu in radio-dev.3
+
+- **Stromsparende Abfrage:** Volumio wird nur jede Sekunde gefragt, solange der Radio-Tab
+  sichtbar ist; bei anderem Tab alle 15 s, bei dunklem Display / Bildschirmschoner gar nicht.
+  Beim Öffnen des Tabs wird sofort neu abgefragt.
+- **Sonderzeichen:** Gedankenstriche, typografische Anführungszeichen, „…“ und Akzentbuchstaben
+  (é, ñ, ç …) aus Sendermetadaten werden in darstellbare Zeichen umgewandelt (keine Kästchen mehr).
+  Umlaute und € bleiben erhalten; Displaytexte schreiben jetzt „Lautstärke“, „Zurück“ usw.
+- **DAB-Knöpfe** zeigen den Sendernamen aus der eingetragenen DAB-Adresse; derselbe Name geht
+  als Titel an Volumio. Leere Presets heißen „DAB 1–3“.
+- **Fehlermeldungen von Volumio** (HTTP 200 mit `error`) werden als Fehler angezeigt.
+- **Laufender Sender grün markiert:** DAB über die Adresse; Internet-Presets nach dem ersten Start
+  vom Display (die Stream-Adresse wird dabei gelernt, gilt bis zum Neustart des Displays).
 
 ## Was vorbereitet ist
 

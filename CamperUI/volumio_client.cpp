@@ -19,6 +19,9 @@ bool busy = false;
 struct Request { radio_protocol::Action action; int value; uint32_t created, generation; };
 QueueHandle_t queue = nullptr;
 TaskHandle_t task = nullptr;
+RadioPollMode poll_mode = RadioPollMode::Off;  // guarded by `guard`
+uint32_t visible_since = 0;                    // guarded by `guard`
+bool poll_now = false;                         // guarded by `guard`
 void publish(const RadioSnapshot &s) {
     if(s.generation != radio_endpoint().generation)return;
     portENTER_CRITICAL(&guard); current = s; current.pending = busy; portEXIT_CRITICAL(&guard);
@@ -38,7 +41,7 @@ void prepare(HTTPClient &http) {
 // Only a fully parsed getState response is published as a fresh player state.
 bool fetch(RadioSnapshot &s, const RadioEndpoint &e) {
     HTTPClient http; prepare(http);
-    if (!http.begin(url(e,"/api/v1/getState"))) { message(s, "Volumio: URL ungueltig"); return false; }
+    if (!http.begin(url(e,"/api/v1/getState"))) { message(s, "Volumio: URL ungültig"); return false; }
     int code = http.GET();
     if (code != 200) {
         snprintf(s.message, sizeof(s.message), "Volumio: HTTP %d", code); http.end(); return false;
@@ -54,11 +57,13 @@ bool fetch(RadioSnapshot &s, const RadioEndpoint &e) {
     http.end();
     const char *status = doc["status"] | "";
     if (error || (strcmp(status, "play") && strcmp(status, "pause") && strcmp(status, "stop"))) {
-        message(s, "Volumio: ungueltiger Playerstatus"); return false;
+        message(s, "Volumio: ungültiger Playerstatus"); return false;
     }
     snprintf(s.playback, sizeof(s.playback), "%s", status);
     snprintf(s.artist, sizeof(s.artist), "%s", doc["artist"] | "");
     snprintf(s.title, sizeof(s.title), "%s", doc["title"] | "");
+    radio_protocol::display_text(s.artist);   // map – ’ … é etc. to glyphs the fonts have
+    radio_protocol::display_text(s.title);
     bool numeric = doc["volume"].is<int>() || doc["volume"].is<float>();
     float volume = numeric ? doc["volume"].as<float>() : -1;
     s.volume_available = numeric && isfinite(volume) && volume >= 0 && volume <= 100 &&
@@ -72,9 +77,9 @@ bool fetch(RadioSnapshot &s, const RadioEndpoint &e) {
 bool send(const Request &r, RadioSnapshot &s, const RadioEndpoint &e) {
     const char *playlist=r.action==radio_protocol::Action::Preset?e.config.playlists[r.value]:"";
     const auto path=radio_protocol::path(r.action,r.value,playlist);
-    if(path.empty()){message(s,"Radio: ungueltiger Befehl");return false;}
+    if(path.empty()){message(s,"Radio: ungültiger Befehl");return false;}
     HTTPClient http;prepare(http);
-    if(!http.begin(url(e,path.c_str()))){message(s,"Radio: URL ungueltig");return false;}
+    if(!http.begin(url(e,path.c_str()))){message(s,"Radio: URL ungültig");return false;}
     int code;
     if(r.action==radio_protocol::Action::DabPreset) {
         if(!*e.config.dab_uris[r.value]){http.end();message(s,"DAB-Preset noch nicht eingerichtet");return false;}
@@ -82,12 +87,27 @@ bool send(const Request &r, RadioSnapshot &s, const RadioEndpoint &e) {
         body["item"]["uri"]=e.config.dab_uris[r.value];
         body["item"]["service"]="rtlsdr_radio";
         body["item"]["type"]="webradio";
-        body["item"]["title"]=radio_config::PRESET_LABELS[r.value];
+        char name[64];
+        if(!radio_protocol::dab_name(e.config.dab_uris[r.value],name,sizeof(name)))
+            snprintf(name,sizeof(name),"DAB %d",r.value+1);
+        body["item"]["title"]=name;
         String payload;serializeJson(body,payload);
         http.addHeader("Content-Type","application/json");code=http.POST(payload);
     } else code=http.GET();
+    String reply=code==200?http.getString():String();
     http.end();
-    if(code!=200){snprintf(s.message,sizeof(s.message),"Befehl HTTP %d - Zustand pruefen",code);return false;}
+    if(code!=200){snprintf(s.message,sizeof(s.message),"Befehl HTTP %d - Zustand prüfen",code);return false;}
+    // Volumio answers failures with HTTP 200 and {"error": ...}; treat that as a failure.
+    JsonDocument filter;filter["error"]=true;
+    JsonDocument answer;
+    if(reply.length() && !deserializeJson(answer,reply,DeserializationOption::Filter(filter)) &&
+       !answer["error"].isNull()) {
+        String detail=answer["error"].is<const char*>()?String(answer["error"].as<const char*>()):String();
+        if(!detail.length())serializeJson(answer["error"],detail);
+        snprintf(s.message,sizeof(s.message),"Volumio-Fehler: %s",detail.c_str());
+        radio_protocol::display_text(s.message);
+        return false;
+    }
     // Success of the request is not confirmation of audible playback.
     return true;
 }
@@ -111,7 +131,7 @@ void worker(void *) {
             } else {
                 // Recheck endpoint immediately before dispatch. In-flight HTTP cannot be undone.
                 if(demo_mode() || radio_endpoint().generation!=e.generation) {
-                    snprintf(command_error,sizeof(command_error),"Adresse geaendert - Befehl verworfen");
+                    snprintf(command_error,sizeof(command_error),"Adresse geändert - Befehl verworfen");
                 } else if(send(r,s,e)) command_error[0]=0;
                 else snprintf(command_error,sizeof(command_error),"%s",s.message);
             }
@@ -122,7 +142,11 @@ void worker(void *) {
             portENTER_CRITICAL(&guard);busy=false;portEXIT_CRITICAL(&guard);
             publish(s);last_poll=millis();
         }
-        if(uint32_t(millis()-last_poll)>=radio_config::POLL_MS) {
+        RadioPollMode mode;bool now_requested;
+        portENTER_CRITICAL(&guard);mode=poll_mode;now_requested=poll_now;poll_now=false;portEXIT_CRITICAL(&guard);
+        uint32_t interval=mode==RadioPollMode::Visible?radio_config::POLL_MS:
+                          mode==RadioPollMode::Background?radio_config::BACKGROUND_POLL_MS:0;
+        if(now_requested || (interval && uint32_t(millis()-last_poll)>=interval)) {
             if(!s.configured){s.online=false;message(s,demo_mode()?"CamperUI-Demomodus: Radio deaktiviert":e.config.enabled?"Volumio-Adresse unter Zahnrad eintragen":"Radio deaktiviert");}
             else if(WiFi.status()!=WL_CONNECTED){s.online=false;message(s,"WLAN getrennt");}
             else {
@@ -139,7 +163,7 @@ bool radio_init() {
     radio_config_load();
     current.generation=radio_endpoint().generation;
     queue = xQueueCreate(1, sizeof(Request));
-    if (!queue) { message(current, "Radio: kein Speicher fuer Warteschlange"); return false; }
+    if (!queue) { message(current, "Radio: kein Speicher für Warteschlange"); return false; }
     // Separate low-priority worker. No LVGL access from this task.
     if (xTaskCreate(worker, "volumio", 8192, nullptr, 1, &task) != pdPASS) {
         vQueueDelete(queue); queue = nullptr;
@@ -152,10 +176,23 @@ RadioSnapshot radio_snapshot() {
     auto e=radio_endpoint();
     if(s.generation!=e.generation){s=RadioSnapshot();s.generation=e.generation;
         s.configured=e.config.enabled && *e.config.host && !demo_mode();
-        message(s,"Radio-Einstellungen werden uebernommen");}
+        message(s,"Radio-Einstellungen werden übernommen");}
     if(demo_mode()){s.online=false;message(s,"CamperUI-Demomodus: Radio deaktiviert");}
-    if (s.online && uint32_t(millis() - s.updated) >= radio_config::STALE_MS) s.online = false;
+    // While polling is slowed down the last state is kept on screen; once the tab is
+    // visible again a fresh poll runs at once, so stale data only counts after that.
+    uint32_t since;
+    portENTER_CRITICAL(&guard);since=visible_since;portEXIT_CRITICAL(&guard);
+    if (s.online && uint32_t(millis() - s.updated) >= radio_config::STALE_MS &&
+        uint32_t(millis() - since) >= radio_config::STALE_MS) s.online = false;
     return s;
+}
+void radio_set_poll_mode(RadioPollMode mode) {
+    portENTER_CRITICAL(&guard);
+    if (mode != poll_mode) {
+        if (mode == RadioPollMode::Visible) { visible_since = millis(); poll_now = true; }
+        poll_mode = mode;
+    }
+    portEXIT_CRITICAL(&guard);
 }
 bool radio_request(radio_protocol::Action action, int value) {
     if (demo_mode() || !radio_protocol::valid(action, value) || !queue || WiFi.status() != WL_CONNECTED) return false;

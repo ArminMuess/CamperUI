@@ -4,12 +4,20 @@
 #include "ui_main.h"
 #include "volumio_client.h"
 #include "config/volumio_config.h"
+#include "ui_screensaver.h"
 namespace {
 lv_obj_t *root, *status, *artist, *title, *playback, *volume_label, *slider;
 lv_obj_t *presets[3], *preset_labels[3], *banks[3], *play_button, *stop_button;
 int bank=0; // Selection changes the controls only; it never starts a source.
 lv_timer_t *refresh = nullptr;
 bool dragging = false;
+// Internet presets start a Volumio playlist; the stream URI it plays is learned from
+// the player state after a tap, so the running preset can be marked afterwards.
+char learned_uri[3][256] = {};
+int learning = -1;               // preset waiting for its URI
+uint32_t learning_since = 0;
+char uri_before[256] = "";
+bool same(const char *a, const char *b) { return *a && *b && !strcmp(a, b); }
 lv_obj_t *label(lv_obj_t *parent, const char *text, int x, int y, int width,
                 const lv_font_t *font = &lv_font_montserrat_16) {
     auto *l = lv_label_create(parent); lv_label_set_text(l, text);
@@ -27,7 +35,11 @@ void click(lv_event_t *e) {
     if(id==20){ui_radio_open_settings();return;}
     if(id<3) {
         if(bank==2)radio_request(id==0?radio_protocol::Action::Previous:id==1?radio_protocol::Action::Pause:radio_protocol::Action::Next);
-        else radio_request(bank==1?radio_protocol::Action::DabPreset:radio_protocol::Action::Preset,int(id));
+        else if(radio_request(bank==1?radio_protocol::Action::DabPreset:radio_protocol::Action::Preset,int(id)) && bank==0) {
+            auto s=radio_snapshot();
+            learning=int(id);learning_since=lv_tick_get();
+            snprintf(uri_before,sizeof(uri_before),"%s",s.uri);
+        }
     } else radio_request(id==3?radio_protocol::Action::Play:radio_protocol::Action::Stop);
     ui_update_radio();
 }
@@ -47,7 +59,7 @@ void volume_event(lv_event_t *e) {
     auto code = lv_event_get_code(e);
     if (code == LV_EVENT_PRESSED) dragging = true;
     if (code == LV_EVENT_VALUE_CHANGED) {
-        char line[48]; snprintf(line, sizeof(line), "Lautstaerke: %d %%", int(lv_slider_get_value(slider)));
+        char line[48]; snprintf(line, sizeof(line), "Lautstärke: %d %%", int(lv_slider_get_value(slider)));
         ui_label_set_text_if_changed(volume_label, line);
     }
     if (code == LV_EVENT_RELEASED) {
@@ -63,6 +75,8 @@ void ui_radio_reset() {
     root = status = artist = title = playback = volume_label = slider = nullptr;
     play_button = stop_button = nullptr; for (auto &p : presets) p = nullptr;
     for(auto &p: banks)p=nullptr;for(auto &p:preset_labels)p=nullptr; dragging = false;
+    learning = -1;
+    radio_set_poll_mode(RadioPollMode::Off);
 }
 void ui_build_radio(lv_obj_t *parent) {
     root = parent; ui_setup_tab_page(root);
@@ -75,13 +89,15 @@ void ui_build_radio(lv_obj_t *parent) {
     const char *sources[]={"Internet","DAB+","Spotify"};
     for(int i=0;i<3;++i){banks[i]=button(sources[i],i*149,49,142,10+i);lv_obj_set_height(banks[i],32);}
     for(int i=0;i<3;++i){presets[i]=button(radio_config::PRESET_LABELS[i],i*149,91,142,i);
-        preset_labels[i]=lv_obj_get_child(presets[i],0);}
+        preset_labels[i]=lv_obj_get_child(presets[i],0);
+        lv_obj_set_width(preset_labels[i],130);lv_label_set_long_mode(preset_labels[i],LV_LABEL_LONG_DOT);
+        lv_obj_set_style_text_align(preset_labels[i],LV_TEXT_ALIGN_CENTER,0);lv_obj_center(preset_labels[i]);}
     artist = label(root, "--", 0, 149, 440, &lv_font_montserrat_20);
     title = label(root, "--", 0, 179, 440);
     playback = label(root, "--", 0, 205, 440, &lv_font_montserrat_12);
     play_button = button("Start", 0, 232, 216, 3);
     stop_button = button("Stopp", 224, 232, 216, 4);
-    volume_label = label(root, "Lautstaerke: --", 0, 292, 440);
+    volume_label = label(root, "Lautstärke: --", 0, 292, 440);
     slider = lv_slider_create(root); lv_obj_set_pos(slider, 14, 335); lv_obj_set_size(slider, 412, 18);
     lv_slider_set_range(slider, 0, 100);
     lv_obj_set_style_bg_color(slider, ui_theme_track(), LV_PART_MAIN);
@@ -89,7 +105,11 @@ void ui_build_radio(lv_obj_t *parent) {
     lv_obj_set_style_bg_color(slider, ui_theme_text(), LV_PART_KNOB);
     lv_obj_add_event_cb(slider, volume_event, LV_EVENT_ALL, nullptr);
     refresh = lv_timer_create([](lv_timer_t *) {
-        if (root && lv_scr_act()==scr_main && !lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN)) ui_update_radio();
+        bool display = display_is_on && !ui_screensaver_is_active();
+        bool visible = display && root && lv_scr_act()==scr_main && !lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN);
+        // Fast polling only while someone can see the page; none while the display is dark.
+        radio_set_poll_mode(visible ? RadioPollMode::Visible : display ? RadioPollMode::Background : RadioPollMode::Off);
+        if (visible) ui_update_radio();
     }, 200, nullptr);
     ui_update_radio();
 }
@@ -107,23 +127,45 @@ void ui_update_radio() {
     ui_label_set_text_if_changed(playback,line);
     bool ready=s.online && !s.pending;
     auto config=radio_endpoint().config;
-    const char *spotify_labels[]={"Zurueck","Pause","Weiter"};
+    const char *spotify_labels[]={"Zurück","Pause","Weiter"};
+    bool playing=s.online && !strcmp(s.playback,"play");
+    // Learn which stream an Internet preset plays: the first new URI after the tap.
+    if(learning>=0) {
+        if(lv_tick_elaps(learning_since)>15000) learning=-1;
+        else if(playing && *s.uri && strcmp(s.uri,uri_before) && !dab_active && !spotify) {
+            for(auto &u:learned_uri) if(!strcmp(u,s.uri)) u[0]=0;   // one preset per stream
+            snprintf(learned_uri[learning],sizeof(learned_uri[learning]),"%s",s.uri);
+            learning=-1;
+        }
+    }
     for(int i=0;i<3;++i) {
         ui_bg_color_if_changed(banks[i],i==bank?ui_theme_primary():ui_theme_card());
-        ui_label_set_text_if_changed(preset_labels[i],bank==2?spotify_labels[i]:radio_config::PRESET_LABELS[i]);
+        char name[64];
+        const char *text=radio_config::PRESET_LABELS[i];
+        if(bank==2) text=spotify_labels[i];
+        else if(bank==1) {
+            if(!radio_protocol::dab_name(config.dab_uris[i],name,sizeof(name))) snprintf(name,sizeof(name),"DAB %d",i+1);
+            text=name;
+        }
+        ui_label_set_text_if_changed(preset_labels[i],text);
         enable(presets[i],ready && (bank==0 || (bank==1 && *config.dab_uris[i]) || (bank==2 && spotify)));
+        bool active=playing && ((bank==1 && same(s.uri,config.dab_uris[i])) ||
+                                (bank==0 && !dab_active && !spotify && same(s.uri,learned_uri[i])));
+        ui_bg_color_if_changed(presets[i],active?ui_theme_relay():ui_theme_card());
+        ui_border_color_if_changed(presets[i],active?ui_theme_relay():ui_theme_border());
+        ui_text_color_if_changed(preset_labels[i],active?ui_theme_btn_active_text():ui_theme_btn_text());
     }
     if(bank==2 && s.online && !spotify)
-        ui_label_set_text_if_changed(status,"Spotify zuerst am Handy / in Volumio auswaehlen");
+        ui_label_set_text_if_changed(status,"Spotify zuerst am Handy / in Volumio auswählen");
     else if(bank==1 && !*config.dab_uris[0] && !*config.dab_uris[1] && !*config.dab_uris[2])
         ui_label_set_text_if_changed(status,"DAB-Presets unter Zahnrad einrichten");
     enable(play_button,ready && (bank!=2 || spotify));enable(stop_button,ready);
     if (!dragging) {
         enable(slider, ready && s.volume_available);
         if (s.online && s.volume_available) {
-            char line[48]; snprintf(line, sizeof(line), "Lautstaerke: %d %% %s", s.volume, s.muted ? "(stumm)" : "");
+            char line[48]; snprintf(line, sizeof(line), "Lautstärke: %d %% %s", s.volume, s.muted ? "(stumm)" : "");
             ui_label_set_text_if_changed(volume_label, line);
             lv_slider_set_value(slider, s.volume, LV_ANIM_OFF);
-        } else ui_label_set_text_if_changed(volume_label, "Lautstaerke: --");
+        } else ui_label_set_text_if_changed(volume_label, "Lautstärke: --");
     }
 }

@@ -32,6 +32,62 @@ inline std::string encode(const char *s) {
     }
     return out;
 }
+// The display fonts cover ASCII plus Ä Ö Ü ä ö ü ß €. Station metadata often contains
+// typographic punctuation and accented letters; map them in place to drawable text so
+// no empty boxes appear. Output is never longer than input.
+inline void display_text(char *s) {
+    static const char latin1[] = // U+00C0..U+00FF; 0 = keep (umlaut/ß), '?' = no good match
+        "AAAAAAACEEEEIIII" "DNOOOOOxOUUUUYTs"   // C0..DF (C4 Ä, D6 Ö, DC Ü, DF ß kept below)
+        "aaaaaaaceeeeiiii" "dnooooo/ouuuuyty";  // E0..FF (E4 ä, F6 ö, FC ü kept below)
+    unsigned char *r = reinterpret_cast<unsigned char *>(s), *w = r;
+    while (*r) {
+        unsigned char c = *r;
+        if (c < 0x80) { *w++ = *r++; continue; }
+        // Kept glyphs: Ä Ö Ü ß ä ö ü (C3 xx) and € (E2 82 AC)
+        if (c == 0xC3 && r[1] && (r[1] == 0x84 || r[1] == 0x96 || r[1] == 0x9C || r[1] == 0x9F ||
+                                  r[1] == 0xA4 || r[1] == 0xB6 || r[1] == 0xBC)) {
+            *w++ = *r++; *w++ = *r++; continue;
+        }
+        if (c == 0xE2 && r[1] == 0x82 && r[2] == 0xAC) { *w++ = *r++; *w++ = *r++; *w++ = *r++; continue; }
+        if (c == 0xC3 && r[1] >= 0x80 && r[1] <= 0xBF) { *w++ = latin1[r[1] - 0x80]; r += 2; continue; }
+        if (c == 0xC2 && r[1] >= 0x80 && r[1] <= 0xBF) {   // NBSP, «, », ´ ...
+            unsigned char d = r[1];
+            *w++ = d == 0xA0 ? ' ' : (d == 0xAB || d == 0xBB) ? '"' : d == 0xB4 ? '\'' : d == 0xB7 ? '-' : '?';
+            r += 2; continue;
+        }
+        if (c == 0xE2 && r[1] == 0x80 && r[2]) {           // General punctuation U+2000..U+203F
+            unsigned char d = r[2];
+            if (d == 0xA6) { *w++ = '.'; *w++ = '.'; *w++ = '.'; }
+            else *w++ = (d >= 0x90 && d <= 0x95) ? '-' : (d >= 0x98 && d <= 0x9B) ? '\'' :
+                        (d >= 0x9C && d <= 0x9F) ? '"' : (d == 0xA2 || d == 0xA7) ? '-' : ' ';
+            r += 3; continue;
+        }
+        // Anything else (other scripts, emoji): one '?' per code point.
+        size_t n = c >= 0xF0 ? 4 : c >= 0xE0 ? 3 : c >= 0xC0 ? 2 : 1;
+        for (size_t i = 0; i < n && *r; ++i) ++r;
+        *w++ = '?';
+    }
+    *w = 0;
+}
+// Station name from a DAB URI of the FM/DAB plugin: rtlsdr://dab/<channel>/<encoded name>
+inline bool dab_name(const char *uri, char *out, size_t len) {
+    if (!len) return false;
+    out[0] = 0;
+    const char prefix[] = "rtlsdr://dab/";
+    if (strncmp(uri, prefix, sizeof(prefix) - 1)) return false;
+    const char *slash = strchr(uri + sizeof(prefix) - 1, '/');
+    if (!slash || !slash[1]) return false;
+    auto hex = [](char h) { return h >= '0' && h <= '9' ? h - '0' : h >= 'A' && h <= 'F' ? h - 'A' + 10 :
+                                   h >= 'a' && h <= 'f' ? h - 'a' + 10 : -1; };
+    size_t o = 0;
+    for (const char *p = slash + 1; *p && o + 1 < len; ++p) {
+        if (*p == '%' && hex(p[1]) >= 0 && hex(p[2]) >= 0) { out[o++] = char(hex(p[1]) * 16 + hex(p[2])); p += 2; }
+        else out[o++] = *p;
+    }
+    out[o] = 0;
+    display_text(out);
+    return o > 0;
+}
 inline std::string path(Action action, int value, const char *playlist = "") {
     if (!valid(action, value)) return {};
     std::string base = "/api/v1/commands/?cmd=";

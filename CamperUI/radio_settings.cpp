@@ -42,7 +42,7 @@ void save(lv_event_t*) {
     next.port=uint16_t(n);
     for(int i=0;i<3;++i){snprintf(next.playlists[i],sizeof(next.playlists[i]),"%s",lv_textarea_get_text(names[i]));
         snprintf(next.dab_uris[i],sizeof(next.dab_uris[i]),"%s",lv_textarea_get_text(dab[i]));}
-    if(!radio_config_valid(next)){lv_label_set_text(notice,"Host, Playlistnamen oder DAB-URI pruefen");return;}
+    if(!radio_config_valid(next)){lv_label_set_text(notice,"Host, Playlistnamen oder DAB-URI prüfen");return;}
     if(!radio_config_save(next)){lv_label_set_text(notice,"Speichern fehlgeschlagen");return;}
     close_settings();
 }
@@ -80,10 +80,10 @@ void ui_radio_open_settings() {
         snprintf(caption,sizeof(caption),"%s: DAB-URI (optional)",radio_config::PRESET_LABELS[i]);
         dab[i]=field(caption,c.dab_uris[i],332+i*168,255);}
     notice=lv_label_create(form);lv_obj_set_pos(notice,0,766);lv_obj_set_width(notice,430);
-    lv_label_set_text(notice,"DAB-URIs spaeter bequem im Browser:\nhttp://DISPLAY-IP/radio");
+    lv_label_set_text(notice,"DAB-URIs später bequem im Browser:\nhttp://DISPLAY-IP/radio");
     lv_obj_set_style_text_font(notice,&lv_font_montserrat_12,0);
     for(int i=0;i<2;++i){auto *b=lv_btn_create(screen);lv_obj_set_pos(b,12+i*234,426);lv_obj_set_size(b,222,44);
-        auto *l=lv_label_create(b);lv_label_set_text(l,i?"Speichern":"Zurueck");lv_obj_center(l);
+        auto *l=lv_label_create(b);lv_label_set_text(l,i?"Speichern":"Zurück");lv_obj_center(l);
         if(i)lv_obj_add_event_cb(b,save,LV_EVENT_CLICKED,nullptr);
         else lv_obj_add_event_cb(b,[](lv_event_t*){close_settings();},LV_EVENT_CLICKED,nullptr);}
     keyboard=lv_keyboard_create(screen);lv_obj_set_size(keyboard,480,250);lv_obj_align(keyboard,LV_ALIGN_BOTTOM_MID,0,0);
