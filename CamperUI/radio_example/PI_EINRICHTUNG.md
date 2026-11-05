@@ -15,16 +15,22 @@ Festgelegte Bedienung:
 
 ## 1. Drehgeber anschließen
 
-Die Pins sind so gewählt, dass sie nicht mit der DACBerry kollidieren
-(die DACBerry nutzt üblicherweise I²S an GPIO 18–21 und I²C an GPIO 2/3 – bitte mit der Anleitung deines Modells gegenprüfen).
+Die DACBerry AMP² belegt laut OSA GPIO 2–3 (Konfiguration), 14–15 (MIDI), 18–21 (Audio)
+und **GPIO 22 (Pin 15) für die Stummschaltung** – GPIO 22 darf also nicht für den Drehgeber verwendet werden
+([GPIO-Übersicht der DACBerry-Boards](https://www.osaelectronics.com/learn/tutorials/gpio-usage-of-dacberry-series-boards/)).
+Der Drehgeber liegt deshalb auf GPIO 23–25. Die fünf Pins sitzen nebeneinander in der Reihe der geraden Pins,
+ein einziger 1×5-Stecker reicht.
 
-| Drehgeber-Anschluss | Raspberry Pi | Physischer Pin |
+Angeschlossen wird an der seitlichen Stiftleiste des GPIO-Verteilers (Geekworm G341), bevor die DACBerry
+aufgesteckt und verschraubt wird.
+
+| Pin | Raspberry Pi | Drehgeber-Anschluss |
 |---|---|---|
-| A (außen) | GPIO 17 | 11 |
-| C (Mitte, gemeinsamer Kontakt) | GND | 14 |
-| B (außen) | GPIO 27 | 13 |
-| Taster, Kontakt 1 | GPIO 22 | 15 |
-| Taster, Kontakt 2 | GND | 20 |
+| 14 | GND | C (Mitte, gemeinsamer Kontakt) |
+| 16 | GPIO 23 | A (außen) |
+| 18 | GPIO 24 | B (außen) |
+| 20 | GND | Taster, Kontakt 2 |
+| 22 | GPIO 25 | Taster, Kontakt 1 |
 
 - Kein 3,3 V nötig: Die internen Pull-up-Widerstände des Pi reichen. Nur bei langen Leitungen (> 50 cm) 10 kΩ von A und B nach 3,3 V ergänzen.
 - Dreht die Lautstärke falsch herum: A und B tauschen (oder im Plugin die Pins tauschen).
@@ -57,10 +63,10 @@ Einstellungen → System: **Volumio 4.x** ist Pflicht (beide Plugins laufen nur 
 |---|---|
 | Encoder aktivieren | ein |
 | Perioden pro Schritt | zuerst **1/1** (Volle Perioden) |
-| Anschluss A GPIO | 17 |
-| Anschluss B GPIO | 27 |
+| Anschluss A GPIO | 23 |
+| Anschluss B GPIO | 24 |
 | Drehfunktion | **Lautstärke** |
-| Taster GPIO | 22 |
+| Taster GPIO | 25 |
 | Entprell-Zeit (ms) | 50 |
 | Taster-Logikpegel low-aktiv | ein |
 | Funktion Tastendruck | **Pause an/aus** |
