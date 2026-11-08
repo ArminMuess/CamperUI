@@ -7,6 +7,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/queue.h>
+#include <esp_heap_caps.h>
+#include "debug_log.h"
 
 using namespace powerunit;
 namespace {
@@ -176,6 +178,15 @@ void background(void *) {
             set_message(fresh ? "Verbunden" : offline ? "Pekaway meldet: Power Unit per Bluetooth nicht verbunden"
                               : at ? "Keine aktuellen Daten von der Power Unit"
                                    : "Verbunden: warte auf Daten der Power Unit");
+        }
+        static uint32_t last_log = 0;
+        if (now - last_log >= 60000) {
+            last_log = now;
+            portENTER_CRITICAL(&guard); bool fresh = model.fresh; float soc = model.state.soc;
+            char id[33]; memcpy(id, model.device_id, sizeof(id)); portEXIT_CRITICAL(&guard);
+            Serial.printf("[POWERUNIT] mqtt=%d daten=%d id=%s soc=%.0f stack_frei=%u heap=%u\n", client.connected(), fresh,
+                          *id ? id : "-", soc, unsigned(uxTaskGetStackHighWaterMark(nullptr)),
+                          unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
         }
         vTaskDelay(pdMS_TO_TICKS(30));
     }

@@ -342,7 +342,7 @@ static const char TERMINAL_HTML[] PROGMEM = R"rawliteral(
       <div class="stat-card">
         <div class="stat-label">System Laufzeit</div>
         <div class="stat-val" id="statUptime">00:00:00</div>
-        <div class="stat-sub">CPU: 240 MHz Dual-Core</div>
+        <div class="stat-sub" id="statReset">CPU: 240 MHz Dual-Core</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">Speicher (Heap / PSRAM)</div>
@@ -488,6 +488,9 @@ static const char TERMINAL_HTML[] PROGMEM = R"rawliteral(
           }
           if (d.uptime) {
             document.getElementById('statUptime').textContent = d.uptime;
+          }
+          if (d.reset_reason) {
+            document.getElementById('statReset').textContent = 'Letzter Neustart: ' + d.reset_reason;
           }
           if (d.wifi_ssid) {
             document.getElementById('statWifi').textContent = d.wifi_ssid + ' (' + d.wifi_rssi + ' dBm)';

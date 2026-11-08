@@ -1,3 +1,4 @@
+#include "reset_info.h"
 #include "web_ota.h"
 #include "system_state.h"
 #include "ui_main.h"
@@ -349,6 +350,7 @@ void web_ota_init() {
         String json = "{";
         json += "\"version\":\"" + String(CAMPERUI_VERSION) + "\",";
         json += "\"uptime\":\"" + String(uptime_buf) + "\",";
+        json += "\"reset_reason\":\"" + String(camper_reset_reason()) + "\",";
         json += "\"heap_free\":" + String(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)) + ",";
         json += "\"heap_max\":" + String(heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL)) + ",";
         json += "\"psram_free\":" + String(heap_caps_get_free_size(MALLOC_CAP_SPIRAM)) + ",";

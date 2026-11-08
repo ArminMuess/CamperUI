@@ -21,6 +21,7 @@
 #include "victron_client.h"
 #include "volumio_client.h"
 #include "powerunit_client.h"
+#include "reset_info.h"
 #include "touch_release_filter.h"
 
 // Hardware and Touch Controller
@@ -416,6 +417,7 @@ void setup() {
     USBSerial.setTxTimeoutMs(0); // Never block if USB CDC host is not actively reading
     delay(200);
     USBSerial.println("\n--- Waveshare ESP32-S3 CamperUI Starting ---");
+    USBSerial.printf("[BOOT " CAMPERUI_VERSION "] Letzter Neustart: %s\n", camper_reset_reason());
     USBSerial.printf("CPU frequency: %u MHz\n", (unsigned)getCpuFrequencyMhz());
 
     state_init();
