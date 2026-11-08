@@ -100,7 +100,7 @@ void background(void *) {
         auto endpoint = powerunit_endpoint();
         bool want, ota;
         portENTER_CRITICAL(&guard); want = wanted; portEXIT_CRITICAL(&guard);
-        { StateLockGuard lock; ota = state.web_ota_active; }
+        ota = state.web_ota_active;   // plain bool flag, read without the state mutex
         if (endpoint.generation != seen_generation) {
             seen_generation = endpoint.generation;
             if (client.connected()) client.disconnect();
@@ -114,10 +114,11 @@ void background(void *) {
             if (client.connected()) client.disconnect();
             portENTER_CRITICAL(&guard); model.connected = false; portEXIT_CRITICAL(&guard);
             clear_pending(nullptr);
-            set_message(ota ? "Pausiert: Firmware-Update" : "Pausiert (Display aus)");
+            set_message(ota ? "Pausiert: Firmware-Update" : "Pausiert (Tab nicht sichtbar)");
             vTaskDelay(pdMS_TO_TICKS(250)); continue;
         }
-        host = broker_host(endpoint.config);
+        // Resolve the broker address only when (re)connecting: no String churn in the loop.
+        if (!client.connected()) host = broker_host(endpoint.config);
         if (WiFi.status() != WL_CONNECTED || !host.length()) {
             if (client.connected()) client.disconnect();
             portENTER_CRITICAL(&guard); model.connected = false; portEXIT_CRITICAL(&guard);
@@ -171,6 +172,17 @@ void background(void *) {
             if (p.active && now - p.since > COMMAND_TIMEOUT_MS) { p.active = false; expired = true; }
         portEXIT_CRITICAL(&guard);
         if (expired) command_message("Keine Bestätigung von der Power Unit: Zustand prüfen");
+        {   // Log every change of connection / data state with the reason (for diagnosis).
+            static bool was_connected = false, was_fresh = false;
+            portENTER_CRITICAL(&guard);
+            bool c = model.connected, f = model.fresh, off = model.bridge_offline; uint32_t at = model.state_at;
+            portEXIT_CRITICAL(&guard);
+            if (c != was_connected || f != was_fresh) {
+                Serial.printf("[POWERUNIT] mqtt %d->%d daten %d->%d (letzte Daten vor %lu ms, bridge_offline=%d, mqtt_state=%d)\n",
+                              was_connected, c, was_fresh, f, at ? (unsigned long)(now - at) : 0UL, off, client.state());
+                was_connected = c; was_fresh = f;
+            }
+        }
         if (!client.connected()) { clear_pending("Verbindung verloren: Befehl abgebrochen"); set_message("MQTT-Verbindung verloren"); }
         else {
             portENTER_CRITICAL(&guard); bool fresh = model.fresh, offline = model.bridge_offline;
@@ -188,7 +200,7 @@ void background(void *) {
                           *id ? id : "-", soc, unsigned(uxTaskGetStackHighWaterMark(nullptr)),
                           unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
         }
-        vTaskDelay(pdMS_TO_TICKS(30));
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 }  // namespace

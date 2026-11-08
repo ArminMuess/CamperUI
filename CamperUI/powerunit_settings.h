@@ -4,3 +4,4 @@ class WebServer;
 void powerunit_register_routes(WebServer &server);
 void ui_powerunit_open_settings();
 void ui_powerunit_settings_reset();
+bool ui_powerunit_settings_open();

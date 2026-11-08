@@ -11,6 +11,10 @@ lv_obj_t *tile_value[4] = {}, *inverter = nullptr, *inverter_label = nullptr;
 lv_obj_t *toggles[3] = {}, *toggle_labels[3] = {};
 lv_timer_t *refresh = nullptr;
 uint32_t hint_at = 0;          // "hold to switch off" hint
+// Battery power and remaining time come from BMS frames that are sometimes briefly missing.
+constexpr uint32_t HOLD_MS = 30000;
+float held_power = NAN; uint32_t held_power_at = 0;
+int held_minutes = 0; bool held_charge = false; uint32_t held_minutes_at = 0;
 constexpr Switch TOGGLE_SWITCH[3] = {Switch::Shore, Switch::Alternator, Switch::Reverse};
 
 lv_obj_t *label(lv_obj_t *parent, const char *text, int x, int y, int width, const lv_font_t *font) {
@@ -113,9 +117,10 @@ void ui_build_powerunit(lv_obj_t *parent) {
     }
     refresh = lv_timer_create([](lv_timer_t *) {
         bool display = display_is_on && !ui_screensaver_is_active();
-        // Connected to the broker only while the display is on: nothing runs while it is dark.
-        powerunit_set_wanted(display);
         bool visible = display && root && lv_scr_act() == scr_main && !lv_obj_has_flag(root, LV_OBJ_FLAG_HIDDEN);
+        // Connected to the broker only while the tab is on screen; the retained state
+        // arrives right after subscribing, so opening the tab still shows data at once.
+        powerunit_set_wanted(visible || (display && ui_powerunit_settings_open()));
         if (visible) ui_update_powerunit();
     }, 300, nullptr);
     ui_update_powerunit();
@@ -139,18 +144,31 @@ void ui_update_powerunit() {
     ui_label_set_text_if_changed(status, text);
     ui_text_color_if_changed(status, color);
 
-    if (s.fresh) {
+    // Keep showing the last values through short gaps (reconnect, a missing BMS frame);
+    // they turn grey when outdated and are cleared only after two minutes without data.
+    bool show = st.valid && s.state_at && uint32_t(millis() - s.state_at) < 120000;
+    uint32_t now = millis();
+    if (isfinite(st.battery_power)) { held_power = st.battery_power; held_power_at = now | 1; }
+    if (st.remaining_minutes > 0) { held_minutes = st.remaining_minutes; held_charge = !strcmp(st.remaining_mode, "charge"); held_minutes_at = now | 1; }
+    float bat_power = isfinite(st.battery_power) ? st.battery_power :
+                      (held_power_at && now - held_power_at < HOLD_MS) ? held_power : NAN;
+    int minutes = st.remaining_minutes > 0 ? st.remaining_minutes :
+                  (held_minutes_at && now - held_minutes_at < HOLD_MS) ? held_minutes : 0;
+    bool charge_mode = st.remaining_minutes > 0 ? !strcmp(st.remaining_mode, "charge") : held_charge;
+    if (show) {
+        lv_color_t value_color = s.fresh ? ui_theme_text() : ui_theme_muted();
         snprintf(line, sizeof(line), "%d %%", int(lroundf(st.soc)));
         ui_label_set_text_if_changed(soc, line);
-        ui_text_color_if_changed(soc, ui_battery_soc_color(int(lroundf(st.soc))));
-        char p[24]; format_power(p, sizeof(p), isfinite(st.battery_power) ? fabsf(st.battery_power) : NAN);
-        bool charging = isfinite(st.battery_power) && st.battery_power > 1;
-        bool using_power = isfinite(st.battery_power) && st.battery_power < -1;
+        ui_text_color_if_changed(soc, s.fresh ? ui_battery_soc_color(int(lroundf(st.soc))) : ui_theme_muted());
+        ui_text_color_if_changed(battery_line, value_color);
+        for (auto *t : tile_value) ui_text_color_if_changed(t, value_color);
+        char p[24]; format_power(p, sizeof(p), isfinite(bat_power) ? fabsf(bat_power) : NAN);
+        bool charging = isfinite(bat_power) && bat_power > 1;
+        bool using_power = isfinite(bat_power) && bat_power < -1;
         snprintf(line, sizeof(line), "%s %s", p, charging ? "lädt" : using_power ? "Verbrauch" : "");
-        ui_label_set_text_if_changed(battery_line, isfinite(st.battery_power) ? line : "Akku");
-        char d[24]; format_duration(d, sizeof(d), st.remaining_minutes);
-        snprintf(line, sizeof(line), st.remaining_minutes <= 0 ? "Restzeit: --" :
-                 !strcmp(st.remaining_mode, "charge") ? "Voll in %s" : "Reicht noch %s", d);
+        ui_label_set_text_if_changed(battery_line, isfinite(bat_power) ? line : "Akku");
+        char d[24]; format_duration(d, sizeof(d), minutes);
+        snprintf(line, sizeof(line), minutes <= 0 ? "Restzeit: --" : charge_mode ? "Voll in %s" : "Reicht noch %s", d);
         ui_label_set_text_if_changed(remaining, line);
         char v[16], sv[16]; format_volt(v, sizeof(v), st.battery_voltage); format_volt(sv, sizeof(sv), st.starter_voltage);
         if (isfinite(st.battery_temperature))

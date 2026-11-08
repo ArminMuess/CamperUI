@@ -59,6 +59,7 @@ async function live(){try{let r=await fetch('/api/powerunit/status');let s=await
 $('form').onsubmit=async e=>{e.preventDefault();let b=$('form').querySelector('button');b.disabled=true;try{let body={host:$('host').value.trim(),port:Number($('port').value),device_id:$('device').value.trim()};let r=await fetch('/api/powerunit/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});let c=await r.json();if(!r.ok)throw Error(c.error||'Speichern fehlgeschlagen');$('status').textContent='Gespeichert. Verbindung wird neu aufgebaut.'}catch(e){$('status').textContent=e.message}finally{b.disabled=false}};load();live();setInterval(live,3000);</script></html>)HTML";
 }  // namespace
 
+bool ui_powerunit_settings_open() { return screen && lv_scr_act() == screen; }
 void ui_powerunit_settings_reset() {
     if (screen) { if (lv_scr_act() == screen) lv_scr_load(scr_main); lv_obj_del(screen); }
     screen = form = keyboard = host = port = device = notice = buzzer = buzzer_label = nullptr;
