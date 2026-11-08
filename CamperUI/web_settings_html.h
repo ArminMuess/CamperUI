@@ -1365,7 +1365,8 @@ static const char SETTINGS_HTML[] PROGMEM = R"rawliteral(
       { id: 10, name: "Truma", icon: "🔥" },
       { id: 11, name: "Victron", icon: "VE" },
       { id: 12, name: "Kühlschrank", icon: "❄️" },
-      { id: 13, name: "Radio", icon: "📻" }
+      { id: 13, name: "Radio", icon: "📻" },
+      { id: 14, name: "Power Unit", icon: "🔌" }
     ];
 
     function showTab(id) {

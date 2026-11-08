@@ -1,5 +1,6 @@
 #include "web_settings.h"
 #include "radio_settings.h"
+#include "powerunit_settings.h"
 #include "victron_settings.h"
 #include "victron_client.h"
 #include "web_settings_html.h"
@@ -16,6 +17,7 @@ extern TwoWire Wire;
 
 void web_settings_register_routes(WebServer &server) {
     radio_register_routes(server);
+    powerunit_register_routes(server);
     // 1. Settings Web UI
     server.on("/settings", HTTP_GET, [&server]() {
         server.send_P(200, "text/html; charset=utf-8", SETTINGS_HTML);

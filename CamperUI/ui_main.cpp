@@ -1,6 +1,7 @@
 #include "ui_main.h"
 #include "ui_victron.h"
 #include "ui_radio.h"
+#include "ui_powerunit.h"
 #include "ui_energy_history.h"
 #include "wifi_diagnostics.h"
 #include "buzzer.h"
@@ -45,7 +46,8 @@ const TabMeta TAB_METAS[TAB_COUNT] = {
     {TAB_TRUMA, "Truma", MDI_FIRE},
     {TAB_VICTRON, "Victron", "VE"},
     {TAB_FRIDGE, "Kühlschrank", MDI_SNOWFLAKE},
-    {TAB_RADIO, "Radio", MDI_SLIDERS}
+    {TAB_RADIO, "Radio", MDI_SLIDERS},
+    {TAB_POWERUNIT, "Power Unit", MDI_BATTERY}
 };
 
 static constexpr uint8_t PAGE_COUNT = TAB_COUNT;
@@ -308,6 +310,7 @@ static void rebuild_ui(void *) {
     ui_switches_reset();
     ui_fridge_reset();
     ui_radio_reset();
+    ui_powerunit_reset();
     if (old_main) lv_obj_del(old_main);
     if (old_settings) lv_obj_del(old_settings);
     scr_main = scr_settings = nullptr;
@@ -487,6 +490,7 @@ void ui_init() {
             case TAB_TRUMA:    ui_build_truma(pages[i]); break;
             case TAB_FRIDGE:   ui_build_fridge(pages[i]); break;
             case TAB_RADIO:    ui_build_radio(pages[i]); break;
+            case TAB_POWERUNIT: ui_build_powerunit(pages[i]); break;
             default: break;
         }
     }
@@ -643,6 +647,7 @@ void ui_update_visible_page() {
         case TAB_TRUMA: ui_update_truma_tab(); break;
         case TAB_FRIDGE: ui_update_fridge(); break;
         case TAB_RADIO: ui_update_radio(); break;
+        case TAB_POWERUNIT: ui_update_powerunit(); break;
         default: break;
     }
 }

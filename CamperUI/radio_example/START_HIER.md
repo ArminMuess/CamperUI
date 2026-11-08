@@ -5,6 +5,18 @@ Basis: CamperUI **V1.9.1**, exakt Commit
 `ef71e15ed8110f5f1a01956fd5a1d3b5677f0550`.
 Radio-Firmwarekennung: `V1.9.1-radio-dev.3`. Datum: 04.11.2026.
 
+## Neu in radio-dev.4: Tab „Power Unit“ (Pekaway)
+
+- Neuer Tab **Power Unit** (wird nach dem Update automatisch eingeblendet, Reihenfolge unter Menü & Tabs).
+- Daten kommen per MQTT vom Broker des Pekaway Core (Topic `pekaway/power_unit/<Kennung>/state`,
+  Bridge `pu_ble_mqtt.py` ab VanPi Core OS 2.1.1). Node-RED muss nicht geändert werden.
+- Anzeige: Ladestand, Akku-Leistung, Restzeit, Spannung/Temperatur, Solar, Landstrom, Lichtmaschine, 230-V-Ausgang, Alarme.
+- **Wechselrichter**: tippen = ein, gedrückt halten = aus. Orange = wartet auf Bestätigung der Power Unit.
+- Umschalter: Landstrom-Ladeleistung Hoch/Niedrig, Lichtmaschine Hoch/Niedrig, Starterbatterie laden erzwingen/automatisch.
+- Summer der Power Unit: Zahnrad im Tab.
+- Einstellungen: Zahnrad oder `http://DISPLAY-IP/powerunit`. Broker leer = VanPi-IP, Port 1883, Kennung leer = automatisch.
+- Stromsparend: Verbindung zum Broker nur, solange das Display an ist.
+
 ## Neu in radio-dev.3
 
 - **Stromsparende Abfrage:** Volumio wird nur jede Sekunde gefragt, solange der Radio-Tab

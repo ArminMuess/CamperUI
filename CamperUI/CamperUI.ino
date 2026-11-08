@@ -20,6 +20,7 @@
 #include "energy_history.h"
 #include "victron_client.h"
 #include "volumio_client.h"
+#include "powerunit_client.h"
 #include "touch_release_filter.h"
 
 // Hardware and Touch Controller
@@ -484,6 +485,7 @@ void setup() {
     const bool data_worker_started = http_start_task();
     victron_init();
     radio_init();
+    powerunit_init();
     USBSerial.printf("[DATA " CAMPERUI_VERSION "] Source=%s worker=%s\n",
                      state.debug_mode ? "DEMO" : "LIVE HTTP",
                      data_worker_started ? "RUNNING" : "FAILED");

@@ -20,7 +20,8 @@ enum TabId : uint8_t {
     TAB_VICTRON = 11, // appended after upstream Truma; legacy RV3D IDs migrate on load
     TAB_FRIDGE = 12,  // Dometic RC10 CI-Bus Fridge
     TAB_RADIO = 13,   // local Volumio extension; existing IDs stay stable
-    TAB_COUNT = 14
+    TAB_POWERUNIT = 14, // Pekaway Power Unit via MQTT
+    TAB_COUNT = 15
 };
 
 enum HeaterType : uint8_t {

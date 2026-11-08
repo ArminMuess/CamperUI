@@ -22,19 +22,22 @@ int main() {
     uint32_t wrap=std::numeric_limits<uint32_t>::max()-100;
     assert(!expired(100,wrap,2500) && expired(2400,wrap,2500));
     for(size_t count:{10U,11U,12U,13U}) for(bool legacy:{false,true}) {
-        uint8_t order[14]={},expected[13]={};bool enabled[14]={},expected_en[13]={};
+        uint8_t order[15]={},expected[13]={};bool enabled[15]={},expected_en[13]={};
         for(size_t i=0;i<count;++i){order[i]=expected[i]=uint8_t(count-1-i);enabled[i]=expected_en[i]=(i%2==0);}
         rv_migrate_tab_order(expected,count,legacy);rv_migrate_tab_visibility(expected_en,count,legacy);
-        assert(radio_migrate_tab_order(order,count,legacy)==14);
-        assert(radio_migrate_tab_visibility(enabled,count,legacy)==14);
-        assert(std::set<unsigned>(order,order+14).size()==14);
+        assert(radio_migrate_tab_order(order,count,legacy)==15);
+        assert(radio_migrate_tab_visibility(enabled,count,legacy)==15);
+        assert(std::set<unsigned>(order,order+15).size()==15);
         for(size_t i=0;i<13;++i){assert(order[i]==expected[i]);assert(enabled[i]==expected_en[i]);}
-        assert(order[13]==13 && enabled[13]);
+        assert(order[13]==13 && enabled[13] && order[14]==14 && enabled[14]);
     }
-    uint8_t order[14];bool enabled[14];
+    uint8_t order[15];bool enabled[15];
+    // Saved by radio-dev.3 (14 tabs): user order kept, Power Unit appended and shown
     for(unsigned i=0;i<14;++i){order[i]=13-i;enabled[i]=false;}
-    assert(radio_migrate_tab_order(order,14,false)==14 && order[0]==13);
-    assert(radio_migrate_tab_visibility(enabled,14,false)==14 && !enabled[13]);
+    assert(radio_migrate_tab_order(order,14,false)==15 && order[0]==13 && order[13]==0 && order[14]==14);
+    assert(radio_migrate_tab_visibility(enabled,14,false)==15 && !enabled[13] && enabled[14]);
+    assert(std::set<unsigned>(order,order+15).size()==15);
+    assert(radio_migrate_tab_order(order,15,false)==15 && order[0]==13);
     assert(radio_migrate_tab_order(order,9,false)==0);
     // Display text: keep umlauts/€, map punctuation and accents, never grow
     auto clean=[](const char *in){char b[160];snprintf(b,sizeof(b),"%s",in);display_text(b);return std::string(b);};
