@@ -2,9 +2,19 @@ name: CamperUI Radio Firmware
 
 on:
   workflow_dispatch:
+    inputs:
+      crash_run_id:
+        description: 'Nur Absturz entschlüsseln: Run-ID des Builds, der abgestürzt ist'
+        required: false
+        default: ''
+      backtrace:
+        description: 'Nur Absturz entschlüsseln: PC und Backtrace-Adressen (0x... 0x...)'
+        required: false
+        default: ''
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   firmware:
@@ -34,7 +44,30 @@ jobs:
           arduino-cli core list
           arduino-cli lib list
 
+      - name: Download debug symbols of the crashed build
+        if: inputs.backtrace != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: CamperUI-Radio-Debug-ELF
+          run-id: ${{ inputs.crash_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: crash
+
+      - name: Decode crash backtrace
+        if: inputs.backtrace != ''
+        shell: bash
+        env:
+          BACKTRACE: ${{ inputs.backtrace }}
+        run: |
+          set -euo pipefail
+          A2L=$(find "$HOME/.arduino15/packages/esp32/tools" -name '*esp32s3-elf-addr2line' -o -name 'xtensa-esp-elf-addr2line' | head -n 1)
+          echo "addr2line: $A2L"
+          ADDRS=$(echo "$BACKTRACE" | grep -oE '0x[0-9a-fA-F]{8}' | tr '\n' ' ')
+          echo "=== DECODED ==="
+          "$A2L" -pfiaC -e crash/CamperUI-Radio.elf $ADDRS
+
       - name: Compile firmware
+        if: inputs.backtrace == ''
         shell: bash
         run: |
           set -euo pipefail
@@ -47,6 +80,7 @@ jobs:
           cp build/CamperUI.ino.elf debug/CamperUI-Radio.elf
 
       - name: Download for WLAN update
+        if: inputs.backtrace == ''
         uses: actions/upload-artifact@v4
         with:
           name: CamperUI-Radio-WLAN-Update
@@ -54,6 +88,7 @@ jobs:
           if-no-files-found: error
 
       - name: Debug symbols (for crash backtraces)
+        if: inputs.backtrace == ''
         uses: actions/upload-artifact@v4
         with:
           name: CamperUI-Radio-Debug-ELF
