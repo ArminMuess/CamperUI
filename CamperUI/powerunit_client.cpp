@@ -204,9 +204,9 @@ void background(void *) {
             last_log = now;
             portENTER_CRITICAL(&guard); bool fresh = model.fresh; float soc = model.state.soc;
             char id[33]; memcpy(id, model.device_id, sizeof(id)); portEXIT_CRITICAL(&guard);
-            Serial.printf("[POWERUNIT] mqtt=%d daten=%d id=%s soc=%.0f stack_frei=%u heap=%u\n", client.connected(), fresh,
+            Serial.printf("[POWERUNIT] mqtt=%d daten=%d id=%s soc=%.0f stack_frei=%u heap=%u wlan=%d dBm\n", client.connected(), fresh,
                           *id ? id : "-", soc, unsigned(uxTaskGetStackHighWaterMark(nullptr)),
-                          unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)));
+                          unsigned(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)), int(WiFi.RSSI()));
         }
         vTaskDelay(pdMS_TO_TICKS(50));
     }
@@ -231,10 +231,11 @@ void powerunit_set_wanted(bool yes) {
 }
 bool powerunit_request(Switch which, bool on) {
     if (!commands || which >= Switch::Count) return false;
+    uint32_t now = millis();
     portENTER_CRITICAL(&guard);
     auto &p = model.pending[uint8_t(which)];
     bool ok = model.fresh && *model.device_id && !p.active;
-    if (ok) { p.active = true; p.target = on; p.since = millis(); }
+    if (ok) { p.active = true; p.target = on; p.since = now; }
     portEXIT_CRITICAL(&guard);
     if (!ok) return false;
     Request r{command_for(which, on)};

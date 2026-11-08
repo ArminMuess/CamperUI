@@ -490,7 +490,7 @@ static const char TERMINAL_HTML[] PROGMEM = R"rawliteral(
             document.getElementById('statUptime').textContent = d.uptime;
           }
           if (d.reset_reason) {
-            document.getElementById('statReset').textContent = 'Letzter Neustart: ' + d.reset_reason;
+            document.getElementById('statReset').textContent = 'Letzter Neustart: ' + d.reset_reason + (d.crash ? ' | ' + d.crash : '');
           }
           if (d.wifi_ssid) {
             document.getElementById('statWifi').textContent = d.wifi_ssid + ' (' + d.wifi_rssi + ' dBm)';

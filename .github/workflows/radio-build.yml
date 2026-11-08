@@ -43,6 +43,8 @@ jobs:
           mkdir -p ota
           cp build/CamperUI.ino.bin ota/CamperUI-Radio-OTA.bin
           sha256sum ota/CamperUI-Radio-OTA.bin > ota/SHA256SUMS.txt
+          mkdir -p debug
+          cp build/CamperUI.ino.elf debug/CamperUI-Radio.elf
 
       - name: Download for WLAN update
         uses: actions/upload-artifact@v4
@@ -50,6 +52,13 @@ jobs:
           name: CamperUI-Radio-WLAN-Update
           path: ota/
           if-no-files-found: error
+
+      - name: Debug symbols (for crash backtraces)
+        uses: actions/upload-artifact@v4
+        with:
+          name: CamperUI-Radio-Debug-ELF
+          path: debug/
+          if-no-files-found: warn
 
       - name: Build logs
         if: always()
