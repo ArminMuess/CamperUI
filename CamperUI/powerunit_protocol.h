@@ -174,6 +174,11 @@ inline bool split_topic(const char *topic, char *id, size_t id_len, char *leaf, 
 inline void topic(char *out, size_t len, const char *id, const char *leaf) {
     snprintf(out, len, "%s/%s/%s", TOPIC_PREFIX, *id ? id : "+", leaf);
 }
+// True if `at` (0 = never) lies less than `limit` ms before `now`. Signed on purpose:
+// a timestamp taken in the same or the next millisecond as `now` counts as current.
+inline bool within(uint32_t now, uint32_t at, uint32_t limit) {
+    return at && int32_t(now - at) < int32_t(limit);
+}
 // Watt with sensible rounding for the tiles: "--", "850 W", "1,2 kW".
 inline void format_power(char *out, size_t len, float w) {
     if (!isfinite(w)) { snprintf(out, len, "--"); return; }

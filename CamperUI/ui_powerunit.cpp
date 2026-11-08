@@ -133,8 +133,8 @@ void ui_update_powerunit() {
     // Status line: command feedback, hint, alert, connection
     const char *text = s.message;
     lv_color_t color = ui_theme_text();
-    bool feedback = *s.command_message && uint32_t(millis() - s.command_message_at) < 8000;
-    if (hint_at && lv_tick_elaps(hint_at) < 3000) text = "Zum Ausschalten den Wechselrichter-Knopf gedrückt halten";
+    bool feedback = *s.command_message && within(millis(), s.command_message_at, 8000);
+    if (within(lv_tick_get(), hint_at, 3000)) text = "Zum Ausschalten den Wechselrichter-Knopf gedrückt halten";
     else if (feedback) { text = s.command_message; color = lv_color_hex(UI_COLOR_WARNING); }
     else if (s.fresh && st.alert_count) {
         if (st.alert_count > 1) snprintf(line, sizeof(line), "%s (+%u)", st.alert, unsigned(st.alert_count - 1));
@@ -146,14 +146,14 @@ void ui_update_powerunit() {
 
     // Keep showing the last values through short gaps (reconnect, a missing BMS frame);
     // they turn grey when outdated and are cleared only after two minutes without data.
-    bool show = st.valid && s.state_at && uint32_t(millis() - s.state_at) < 120000;
+    bool show = st.valid && within(millis(), s.state_at, 120000);
     uint32_t now = millis();
     if (isfinite(st.battery_power)) { held_power = st.battery_power; held_power_at = now | 1; }
     if (st.remaining_minutes > 0) { held_minutes = st.remaining_minutes; held_charge = !strcmp(st.remaining_mode, "charge"); held_minutes_at = now | 1; }
     float bat_power = isfinite(st.battery_power) ? st.battery_power :
-                      (held_power_at && now - held_power_at < HOLD_MS) ? held_power : NAN;
+                      within(now, held_power_at, HOLD_MS) ? held_power : NAN;
     int minutes = st.remaining_minutes > 0 ? st.remaining_minutes :
-                  (held_minutes_at && now - held_minutes_at < HOLD_MS) ? held_minutes : 0;
+                  within(now, held_minutes_at, HOLD_MS) ? held_minutes : 0;
     bool charge_mode = st.remaining_minutes > 0 ? !strcmp(st.remaining_mode, "charge") : held_charge;
     if (show) {
         lv_color_t value_color = s.fresh ? ui_theme_text() : ui_theme_muted();

@@ -78,5 +78,9 @@ int main() {
     format_duration(t, sizeof(t), 125); assert(!strcmp(t, "2 h 05 min"));
     format_duration(t, sizeof(t), 2340); assert(!strcmp(t, "39 h 00 min"));
     format_duration(t, sizeof(t), 4320); assert(!strcmp(t, "3 Tage"));
+    // Timestamps: one taken a millisecond after `now` (millis()|1) still counts as current
+    assert(within(1000, 1001, STALE_MS) && within(1000, 1000, STALE_MS) && !within(1000, 0, STALE_MS));
+    assert(within(20000, 10001, STALE_MS) && !within(20000, 10000, STALE_MS));
+    assert(within(5, 0xFFFFFFF0u, STALE_MS));   // millis() wraparound
     puts("powerunit protocol: ok");
 }

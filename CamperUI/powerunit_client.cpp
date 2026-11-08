@@ -20,13 +20,18 @@ TaskHandle_t worker = nullptr;
 QueueHandle_t commands = nullptr;
 struct Request { Command command; };
 
+// No formatting inside critical sections: prepare the text first, then copy it in.
 void set_message(const char *text) {
-    portENTER_CRITICAL(&guard); snprintf(model.message, sizeof(model.message), "%s", text); portEXIT_CRITICAL(&guard);
+    char buffer[sizeof(model.message)];
+    strncpy(buffer, text, sizeof(buffer) - 1); buffer[sizeof(buffer) - 1] = 0;
+    portENTER_CRITICAL(&guard); memcpy(model.message, buffer, sizeof(buffer)); portEXIT_CRITICAL(&guard);
 }
 void command_message(const char *text) {
+    char buffer[sizeof(model.command_message)];
+    strncpy(buffer, text, sizeof(buffer) - 1); buffer[sizeof(buffer) - 1] = 0;
+    uint32_t at = millis() | 1;
     portENTER_CRITICAL(&guard);
-    snprintf(model.command_message, sizeof(model.command_message), "%s", text);
-    model.command_message_at = millis() | 1;
+    memcpy(model.command_message, buffer, sizeof(buffer)); model.command_message_at = at;
     portEXIT_CRITICAL(&guard);
 }
 void clear_pending(const char *why) {
@@ -48,16 +53,18 @@ void received(char *topic, uint8_t *payload, unsigned int length) {
     if (!strcmp(leaf, "state")) {
         State st;
         if (!parse_state(text, length, st)) return;
+        uint32_t at = millis() | 1;
         portENTER_CRITICAL(&guard);
-        if (!*model.device_id) snprintf(model.device_id, sizeof(model.device_id), "%s", id);
-        model.state = st; model.state_at = millis() | 1;
+        if (!*model.device_id) memcpy(model.device_id, id, sizeof(model.device_id));
+        model.state = st; model.state_at = at;
         portEXIT_CRITICAL(&guard);
     } else if (!strcmp(leaf, "health")) {
         bool online = false;
         if (!parse_health(text, length, online)) return;
+        uint32_t at = millis() | 1;
         portENTER_CRITICAL(&guard);
-        if (!*model.device_id) snprintf(model.device_id, sizeof(model.device_id), "%s", id);
-        model.bridge_offline = !online; bridge_health_at = millis() | 1;
+        if (!*model.device_id) memcpy(model.device_id, id, sizeof(model.device_id));
+        model.bridge_offline = !online; bridge_health_at = at;
         portEXIT_CRITICAL(&guard);
     } else if (!strcmp(leaf, "result")) {
         Command c; char error[48];
@@ -104,8 +111,9 @@ void background(void *) {
         if (endpoint.generation != seen_generation) {
             seen_generation = endpoint.generation;
             if (client.connected()) client.disconnect();
+            char configured[33]; memcpy(configured, endpoint.config.device_id, sizeof(configured));
             portENTER_CRITICAL(&guard);
-            snprintf(model.device_id, sizeof(model.device_id), "%s", endpoint.config.device_id);
+            memcpy(model.device_id, configured, sizeof(model.device_id));
             model.state_at = 0; model.state = State();
             portEXIT_CRITICAL(&guard);
             retry_at = 0;
@@ -166,10 +174,10 @@ void background(void *) {
         portENTER_CRITICAL(&guard);
         model.connected = client.connected();
         // A once-subscribed wildcard is narrowed to the found device on the next reconnect.
-        model.fresh = model.connected && model.state_at && now - model.state_at < STALE_MS &&
+        model.fresh = model.connected && within(now, model.state_at, STALE_MS) &&
                       !(model.bridge_offline && bridge_health_at);
         for (auto &p : model.pending)
-            if (p.active && now - p.since > COMMAND_TIMEOUT_MS) { p.active = false; expired = true; }
+            if (p.active && int32_t(now - p.since) > int32_t(COMMAND_TIMEOUT_MS)) { p.active = false; expired = true; }
         portEXIT_CRITICAL(&guard);
         if (expired) command_message("Keine Bestätigung von der Power Unit: Zustand prüfen");
         {   // Log every change of connection / data state with the reason (for diagnosis).
@@ -178,8 +186,8 @@ void background(void *) {
             bool c = model.connected, f = model.fresh, off = model.bridge_offline; uint32_t at = model.state_at;
             portEXIT_CRITICAL(&guard);
             if (c != was_connected || f != was_fresh) {
-                Serial.printf("[POWERUNIT] mqtt %d->%d daten %d->%d (letzte Daten vor %lu ms, bridge_offline=%d, mqtt_state=%d)\n",
-                              was_connected, c, was_fresh, f, at ? (unsigned long)(now - at) : 0UL, off, client.state());
+                Serial.printf("[POWERUNIT] mqtt %d->%d daten %d->%d (letzte Daten vor %ld ms, bridge_offline=%d, mqtt_state=%d)\n",
+                              was_connected, c, was_fresh, f, at ? (long)int32_t(now - at) : 0L, off, client.state());
                 was_connected = c; was_fresh = f;
             }
         }
