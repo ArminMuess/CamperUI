@@ -171,8 +171,11 @@ void background(void *) {
         }
         uint32_t now = millis();
         bool expired = false;
+        // Never call into the network stack inside a critical section (interrupts are off):
+        // client.connected() reads the socket and may block -> watchdog / panic.
+        bool link = client.connected();
         portENTER_CRITICAL(&guard);
-        model.connected = client.connected();
+        model.connected = link;
         // A once-subscribed wildcard is narrowed to the found device on the next reconnect.
         model.fresh = model.connected && within(now, model.state_at, STALE_MS) &&
                       !(model.bridge_offline && bridge_health_at);
@@ -224,6 +227,8 @@ void powerunit_init() {
 PowerUnitSnapshot powerunit_snapshot() {
     PowerUnitSnapshot s;
     portENTER_CRITICAL(&guard); s = model; s.wanted = wanted; portEXIT_CRITICAL(&guard);
+    // Judge freshness at read time, so a stalled worker can never present old data as current.
+    s.fresh = s.fresh && within(millis(), s.state_at, STALE_MS);
     return s;
 }
 void powerunit_set_wanted(bool yes) {
