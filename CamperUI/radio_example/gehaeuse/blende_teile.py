@@ -129,14 +129,16 @@ def display_haube():
 # 40-Pin-Leiste hinten (+Y). Darauf G341 + DACBerry AMP2 (Stapelhöhe geschätzt).
 STACK_H = 45.0          # Innenhöhe: Pi + G341 + DACBerry inkl. Klemmen ca. 39-41 mm + Luft
 P_WALL, P_FLOOR, P_LID = 2.2, 2.5, 2.5
-P_IN_X, P_IN_Y = 168.0, 64.0
-PI_X, PI_Y = 8.0, 4.0                     # Pi-Ecke im Innenraum
+P_IN_X, P_IN_Y = 96.0, 72.0               # Stirnwand direkt hinter den Pi-Buchsen
+PI_X, PI_Y = 8.0, 8.0                     # Pi-Ecke im Innenraum (Deckel-Dome in den Ecken frei)
 PI_HOLES = [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)]
 STANDOFF_H, STANDOFF_D, M25_TAP = 4.0, 6.0, 2.2
-# DAB-Stick im oberen schwarzen USB-2-Port (Pi 4: USB 2.0 bei Y = 47 mm, oberer Port ca. 12 mm über der Platine)
+# DAB-Stick im oberen schwarzen USB-2-Port (Pi 4: USB 2.0 bei Y = 47 mm, oberer Port ca. 12 mm über der Platine).
+# Der Stick ragt durch ein Fenster in der Stirnwand nach außen und liegt dort auf einer Zunge
+# mit Auflage und Kabelbinder (Antenne direkt am Stick).
 USB2_Y = 47.0
-STICK_REST_X, STICK_REST_TOP = 85.0 + 40.0, 9.0   # Auflage ca. 40 mm hinter der Pi-Kante, mit Schaumpad anpassen
-SMA_D = 6.5
+TONGUE_LEN, TONGUE_W = 62.0, 30.0
+STICK_REST_DIST, STICK_REST_TOP = 40.0, 12.0     # Auflage 40 mm vor der Stirnwand, Oberkante 12 mm (Schaumpad 1-3 mm)
 BOSS_D, BOSS_HOLE, BOSS_DEPTH = 7.0, 2.6, 12.0
 
 
@@ -163,10 +165,13 @@ def pi_gehaeuse():
     for hx, hy in PI_HOLES:
         add.append(cyl(x0 + PI_X + hx, y0 + PI_Y + hy, P_FLOOR - 0.01, STANDOFF_D, STANDOFF_H + 0.01))
         cut.append(cyl(x0 + PI_X + hx, y0 + PI_Y + hy, P_FLOOR + 0.6, M25_TAP, STANDOFF_H + 1))
-    # Stick-Auflage mit Kabelbinder-Tunnel
-    sx, sy = x0 + PI_X + STICK_REST_X, y0 + PI_Y + USB2_Y
-    add.append(box(sx - 6, sy - 12, P_FLOOR - 0.01, 12, 24, STICK_REST_TOP - P_FLOOR + 0.01))
-    cut.append(box(sx - 2.5, sy - 13, P_FLOOR + 3.0, 5, 26, 2.2))
+    # Zunge außen an der Stirnwand mit Stick-Auflage, Kabelbinder-Tunnel und Schraub-Langloch am Ende
+    sy = y0 + PI_Y + USB2_Y
+    add.append(rrect(lx - 4, sy - TONGUE_W / 2, TONGUE_LEN + 4, TONGUE_W, 3.0, 3.0))
+    rx = lx + STICK_REST_DIST
+    add.append(box(rx - 6, sy - 12, 0, 12, 24, STICK_REST_TOP))
+    cut.append(box(rx - 2.5, sy - 13, STICK_REST_TOP - 5.5, 5, 26, 2.2))
+    cut.append(slot_z(lx + TONGUE_LEN - 7, sy, -1, 4.0, 9.0, 5, along_x=True))
     # Schraublaschen am Boden (Blendenseite), Langlöcher in X
     for tx in (30.0, lx - 30.0):
         for ty, side in ((-7.0, -1), (ly + 7.0, 1)):
@@ -184,8 +189,9 @@ def pi_gehaeuse():
     cut.append(box(x0 + 12, -1, P_FLOOR + 26.0, 60, P_WALL + 2, lz))
     # SD-Karte links
     cut.append(box(-1, y0 + PI_Y + 28 - 8, P_FLOOR + 0.5, P_WALL + 2, 16, 7))
-    # SMA-Durchführung rechts (Antenne), über dem Stick
-    cut.append(cyl_x(lx - P_WALL - 1, y0 + PI_Y + USB2_Y - 14, P_FLOOR + 32.0, SMA_D, P_WALL + 2))
+    # Fenster in der Stirnwand für die USB-Buchsen (Stick steckt oben im schwarzen USB-2-Port)
+    pcb_top = P_FLOOR + STANDOFF_H + 1.4
+    cut.append(box(lx - P_WALL - 1, y0 + PI_Y + USB2_Y - 14, pcb_top - 0.5, P_WALL + 2, 28, 24))
     return m - union(cut)
 
 
@@ -211,8 +217,6 @@ def pi_deckel():
     # Lüftungsschlitze über Pi/DACBerry und über dem Stick
     for i in range(12):
         cut.append(box(P_WALL + 14 + i * 7, ly / 2 - 20, -1, 3, 40, P_LID + 2))
-    for i in range(5):
-        cut.append(box(P_WALL + 112 + i * 9, ly / 2 - 15, -1, 3, 30, P_LID + 2))
     return lid - union(cut)
 
 

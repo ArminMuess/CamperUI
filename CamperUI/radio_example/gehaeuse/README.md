@@ -7,7 +7,7 @@ Stapelhöhe `STACK_H` (geschätzt 45 mm innen) und Stick-Auflage nach dem Nachme
 | Teil | Größe (mm) | Schrauben |
 |---|---|---|
 | `display_haube` | 101 × 103 × 14,5 | 4 × Holzschraube 3,5 × 10, 4 × M2,5 × 6 (Display) |
-| `pi_gehaeuse` + `pi_deckel` | 172 × 96 × 50 | 4 × 3,5 × 10, 4 × M2,5 × 6 (Pi), 4 × M3 × 8 Senkkopf (Deckel) |
+| `pi_gehaeuse` + `pi_deckel` | 100 × 76 × 50 (+ Zunge 62 mm für den Stick) | 5 × 3,5 × 10, 4 × M2,5 × 6 (Pi), 1 Kabelbinder (Stick), 4 × M3 × 8 Senkkopf (Deckel) |
 | `drehgeber_platte` | 52 × 22 | 2 × 3,5 × 10, Mutter M7 des Drehgebers |
 | `wago_halter` | 98 × 21 | 2 × 3,5 × 10, 2 Kabelbinder |
 | `shelly_halter` | 79 × 40 | 2 × 3,5 × 10, 2 Kabelbinder |
