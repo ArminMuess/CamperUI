@@ -127,18 +127,18 @@ def display_haube():
 # ============================================================================ 2) Pi-Gehäuse
 # Raspberry Pi 4 (85 x 56), Anschlüsse rechts (+X), HDMI/USB-C vorn (Y = 0),
 # 40-Pin-Leiste hinten (+Y). Darauf G341 + DACBerry AMP2 (Stapelhöhe geschätzt).
-STACK_H = 45.0          # Innenhöhe: Pi + G341 + DACBerry inkl. Klemmen ca. 39-41 mm + Luft
+STACK_H = 48.0          # Innenhöhe: 4 mm Abstandshalter + 40 mm gemessener Stapel (Pi-Platine bis Klemmen DACBerry AMP2 SE) + Luft
 P_WALL, P_FLOOR, P_LID = 2.2, 2.5, 2.5
-P_IN_X, P_IN_Y = 96.0, 72.0               # Stirnwand direkt hinter den Pi-Buchsen
-PI_X, PI_Y = 8.0, 8.0                     # Pi-Ecke im Innenraum (Deckel-Dome in den Ecken frei)
+P_IN_X, P_IN_Y = 106.0, 72.0              # Stirnwand direkt hinter den Pi-Buchsen
+PI_X, PI_Y = 18.0, 8.0                    # Pi-Ecke; die DACBerry steht über den G341 ca. 8 mm über das SD-Ende hinaus
 PI_HOLES = [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)]
 STANDOFF_H, STANDOFF_D, M25_TAP = 4.0, 6.0, 2.2
-# DAB-Stick im oberen schwarzen USB-2-Port (Pi 4: USB 2.0 bei Y = 47 mm, oberer Port ca. 12 mm über der Platine).
+# DAB-Stick im oberen blauen USB-3-Port (Pi 4: USB 3.0 bei Y = 29 mm, oberer Port ca. 12 mm über der Platine).
 # Der Stick ragt durch ein Fenster in der Stirnwand nach außen und liegt dort auf einer Zunge
 # mit Auflage und Kabelbinder (Antenne direkt am Stick).
-USB2_Y = 47.0
+USB2_Y = 29.0          # Stick-Port (Name historisch)
 TONGUE_LEN, TONGUE_W = 62.0, 30.0
-STICK_REST_DIST, STICK_REST_TOP = 40.0, 12.0     # Auflage 40 mm vor der Stirnwand, Oberkante 12 mm (Schaumpad 1-3 mm)
+STICK_REST_DIST, STICK_REST_TOP = 40.0, 12.5     # Auflage 40 mm vor der Stirnwand, Oberkante 12 mm (Schaumpad 1-3 mm)
 BOSS_D, BOSS_HOLE, BOSS_DEPTH = 7.0, 2.6, 12.0
 
 
@@ -184,7 +184,7 @@ def pi_gehaeuse():
     for i in range(10):
         cut.append(box(x0 + 14 + i * 7, -1, P_FLOOR + 3, 3.0, P_WALL + 2, 12))
     # Kabelöffnung hinten (+Y, Seite der 40-Pin-Leiste): Lautsprecher, 12 V, Drehgeber
-    cut.append(box(x0 + 12, ly - P_WALL - 1, P_FLOOR + 20.0, 72, P_WALL + 2, lz))
+    cut.append(box(x0 + 12, ly - P_WALL - 1, P_FLOOR + 14.0, 72, P_WALL + 2, lz))   # inkl. Seitenstifte G341
     # zweite Öffnung vorn oben (Klemmen der DACBerry, falls sie nach vorn zeigen)
     cut.append(box(x0 + 12, -1, P_FLOOR + 26.0, 60, P_WALL + 2, lz))
     # SD-Karte links

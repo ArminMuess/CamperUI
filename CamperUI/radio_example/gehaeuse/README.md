@@ -2,12 +2,12 @@
 
 Alle Teile werden einzeln von hinten auf die 10-mm-Holzblende geschraubt.
 Erzeugt mit `blende_teile.py` (manifold3d). Maße noch nicht am echten Aufbau geprüft:
-Stapelhöhe `STACK_H` (geschätzt 45 mm innen) und Stick-Auflage nach dem Nachmessen anpassen.
+Stapelhöhe `STACK_H` (48 mm innen, aus 40 mm gemessenem Stapel) und Stick-Auflage nach dem Nachmessen anpassen.
 
 | Teil | Größe (mm) | Schrauben |
 |---|---|---|
 | `display_haube` | 101 × 103 × 14,5 | 4 × Holzschraube 3,5 × 10, 4 × M2,5 × 6 (Display) |
-| `pi_gehaeuse` + `pi_deckel` | 100 × 76 × 50 (+ Zunge 62 mm für den Stick) | 5 × 3,5 × 10, 4 × M2,5 × 6 (Pi), 1 Kabelbinder (Stick), 4 × M3 × 8 Senkkopf (Deckel) |
+| `pi_gehaeuse` + `pi_deckel` | 110 × 76 × 53 (+ Zunge 62 mm für den Stick) | 5 × 3,5 × 10, 4 × M2,5 × 6 (Pi), 1 Kabelbinder (Stick), 4 × M3 × 8 Senkkopf (Deckel) |
 | `drehgeber_platte` | 52 × 22 | 2 × 3,5 × 10, Mutter M7 des Drehgebers |
 | `wago_halter` | 98 × 21 | 2 × 3,5 × 10, 2 Kabelbinder |
 | `shelly_halter` | 79 × 40 | 2 × 3,5 × 10, 2 Kabelbinder |
