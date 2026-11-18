@@ -39,7 +39,20 @@ aufgesteckt und verschraubt wird.
 
 Einstellungen → System: **Volumio 4.x** ist Pflicht (beide Plugins laufen nur unter Volumio 4 / Bookworm).
 
+### Erstinstallation und Soundkarte
+
+- Nach dem Flashen öffnet Volumio einen eigenen WLAN-Hotspot **„Volumio“**, Passwort **`volumio2`**,
+  Einrichtung unter `http://192.168.211.1`.
+- **Soundkarte:** Einstellungen → Wiedergabe-Optionen → I2S-DAC **ein**, Modell **„HiFiBerry DAC Plus“**
+  (laut OSA voll kompatibel mit der DACBerry AMP² SE), neu starten, Ausgabegerät „HiFiBerry DAC Plus“.
+- Gleich das **Camper-WLAN** eintragen (nicht den Handy-Hotspot): Display und Pi müssen im selben Netz sein.
+- Findet man den Pi nicht unter `volumio.local` (Windows, Handy-Hotspot): IP im Router nachsehen oder
+  unter Windows `for /L %i in (1,1,254) do @ping -n 1 -w 150 <netz>.%i | find "TTL="` – der Pi antwortet mit TTL=64.
+
 ## 3. DAB+ mit dem Nooelec-Stick
+
+Ohne Antenne findet der Suchlauf keine Sender. Zum Testen reicht notfalls ein Draht von etwa 32 cm
+(Viertelwelle für DAB Band III) in der SMA-Buchse.
 
 1. Stick mit Antenne einstecken (möglichst direkt am Pi, nicht über einen Hub).
 2. Plugins → Plugins suchen → **FM/DAB Radio** (`rtlsdr_radio`) installieren und aktivieren. Danach einmal neu starten.
